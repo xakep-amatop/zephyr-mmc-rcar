@@ -37,7 +37,7 @@
 #include "grant_table.h"
 #include "memory.h"
 
-#define XEN_DOMCTL_INTERFACE_VERSION 0x00000014
+#define XEN_DOMCTL_INTERFACE_VERSION 0x00000015
 
 /*
  * NB. xen_domctl.domain is an IN/OUT parameter for this operation.
@@ -69,9 +69,11 @@ struct xen_domctl_createdomain {
 #define XEN_DOMCTL_CDF_iommu          (1U<<_XEN_DOMCTL_CDF_iommu)
 #define _XEN_DOMCTL_CDF_nested_virt   6
 #define XEN_DOMCTL_CDF_nested_virt    (1U << _XEN_DOMCTL_CDF_nested_virt)
+/* Should we expose the vPMU to the guest? */
+#define XEN_DOMCTL_CDF_vpmu           (1U << 7)
 
 /* Max XEN_DOMCTL_CDF_* constant.  Used for ABI checking. */
-#define XEN_DOMCTL_CDF_MAX XEN_DOMCTL_CDF_nested_virt
+#define XEN_DOMCTL_CDF_MAX XEN_DOMCTL_CDF_vpmu
 
 	uint32_t flags;
 
@@ -94,8 +96,17 @@ struct xen_domctl_createdomain {
 	int32_t max_grant_frames;
 	int32_t max_maptrack_frames;
 
+/* Grant version, use low 4 bits. */
+#define XEN_DOMCTL_GRANT_version_mask    0xf
+#define XEN_DOMCTL_GRANT_version(v)      ((v) & XEN_DOMCTL_GRANT_version_mask)
+
+	uint32_t grant_opts;
+
 	/* Per-vCPU buffer size in bytes.  0 to disable. */
 	uint32_t vmtrace_size;
+
+	/* CPU pool to use; specify 0 or a specific existing pool */
+	uint32_t cpupool_id;
 
 	struct xen_arch_domainconfig arch;
 };
@@ -104,6 +115,7 @@ struct xen_domctl_createdomain {
 struct xen_domctl_getdomaininfo {
 	/* OUT variables. */
 	domid_t  domain;              /* Also echoed in domctl.domain */
+	uint16_t pad1;
  /* Domain is scheduled to die. */
 #define _XEN_DOMINF_dying     0
 #define XEN_DOMINF_dying      (1U<<_XEN_DOMINF_dying)
@@ -148,10 +160,43 @@ struct xen_domctl_getdomaininfo {
 	uint32_t ssidref;
 	xen_domain_handle_t handle;
 	uint32_t cpupool;
+	uint8_t gpaddr_bits; /* Guest physical address space size. */
+	uint8_t pad2[7];
 	struct xen_arch_domainconfig arch_config;
 };
 typedef struct xen_domctl_getdomaininfo xen_domctl_getdomaininfo_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_getdomaininfo_t);
+
+/*
+ * Control shadow pagetables operation
+ */
+/* XEN_DOMCTL_shadow_op */
+
+/* Memory allocation accessors. */
+#define XEN_DOMCTL_SHADOW_OP_GET_ALLOCATION   30
+#define XEN_DOMCTL_SHADOW_OP_SET_ALLOCATION   31
+
+struct xen_domctl_shadow_op_stats {
+	uint32_t fault_count;
+	uint32_t dirty_count;
+};
+
+struct xen_domctl_shadow_op {
+	/* IN variables. */
+	uint32_t       op;       /* XEN_DOMCTL_SHADOW_OP_* */
+
+	/* OP_ENABLE: XEN_DOMCTL_SHADOW_ENABLE_* */
+	/* OP_PEAK / OP_CLEAN: XEN_DOMCTL_SHADOW_LOGDIRTY_* */
+	uint32_t       mode;
+
+	/* OP_GET_ALLOCATION / OP_SET_ALLOCATION */
+	uint32_t       mb;       /* Shadow memory allocation in MB */
+
+	/* OP_PEEK / OP_CLEAN */
+	XEN_GUEST_HANDLE_64(uint8_t) dirty_bitmap;
+	uint64_aligned_t pages; /* Size of buffer. Updated with actual size. */
+	struct xen_domctl_shadow_op_stats stats;
+};
 
 /* XEN_DOMCTL_max_mem */
 struct xen_domctl_max_mem {
@@ -252,10 +297,112 @@ struct xen_domctl_scheduler_op {
 	} u;
 };
 
+/* XEN_DOMCTL_iomem_permission */
+struct xen_domctl_iomem_permission {
+	uint64_aligned_t first_mfn;/* first page (physical page number) in range */
+	uint64_aligned_t nr_mfns;  /* number of pages in range (>0) */
+	uint8_t  allow_access;     /* allow (!0) or deny (0) access to range? */
+};
+
 /* XEN_DOMCTL_set_address_size */
 /* XEN_DOMCTL_get_address_size */
 struct xen_domctl_address_size {
 	uint32_t size;
+};
+
+/* Assign a device to a guest. Sets up IOMMU structures. */
+/* XEN_DOMCTL_assign_device */
+/*
+ * XEN_DOMCTL_test_assign_device: Pass DOMID_INVALID to find out whether the
+ * given device is assigned to any DomU at all. Pass a specific domain ID to
+ * find out whether the given device can be assigned to that domain.
+ */
+/*
+ * XEN_DOMCTL_deassign_device: The behavior of this DOMCTL differs
+ * between the different type of device:
+ *  - PCI device (XEN_DOMCTL_DEV_PCI) will be reassigned to DOM0
+ *  - DT device (XEN_DOMCTL_DEV_DT) will left unassigned. DOM0
+ *  will have to call XEN_DOMCTL_assign_device in order to use the
+ *  device.
+ */
+#define XEN_DOMCTL_DEV_PCI      0
+#define XEN_DOMCTL_DEV_DT       1
+struct xen_domctl_assign_device {
+	/* IN */
+	uint32_t dev;   /* XEN_DOMCTL_DEV_* */
+	uint32_t flags;
+#define XEN_DOMCTL_DEV_RDM_RELAXED      1 /* assign only */
+	union {
+		struct {
+			uint32_t machine_sbdf;   /* machine PCI ID of assigned device */
+		} pci;
+		struct {
+			uint32_t size; /* Length of the path */
+			XEN_GUEST_HANDLE_64(char) path; /* path to the device tree node */
+		} dt;
+	} u;
+};
+
+/* Pass-through interrupts: bind real irq -> hvm devfn. */
+/* XEN_DOMCTL_bind_pt_irq */
+/* XEN_DOMCTL_unbind_pt_irq */
+enum pt_irq_type {
+	PT_IRQ_TYPE_PCI,
+	PT_IRQ_TYPE_ISA,
+	PT_IRQ_TYPE_MSI,
+	PT_IRQ_TYPE_MSI_TRANSLATE,
+	PT_IRQ_TYPE_SPI,    /* ARM: valid range 32-1019 */
+};
+struct xen_domctl_bind_pt_irq {
+	uint32_t machine_irq;
+	uint32_t irq_type; /* enum pt_irq_type */
+
+	union {
+		struct {
+			uint8_t isa_irq;
+		} isa;
+		struct {
+			uint8_t bus;
+			uint8_t device;
+			uint8_t intx;
+		} pci;
+		struct {
+			uint8_t gvec;
+			uint32_t gflags;
+#define XEN_DOMCTL_VMSI_X86_DEST_ID_MASK 0x0000ff
+#define XEN_DOMCTL_VMSI_X86_RH_MASK      0x000100
+#define XEN_DOMCTL_VMSI_X86_DM_MASK      0x000200
+#define XEN_DOMCTL_VMSI_X86_DELIV_MASK   0x007000
+#define XEN_DOMCTL_VMSI_X86_TRIG_MASK    0x008000
+#define XEN_DOMCTL_VMSI_X86_UNMASKED     0x010000
+
+			uint64_aligned_t gtable;
+		} msi;
+		struct {
+			uint16_t spi;
+		} spi;
+	} u;
+};
+
+
+/* Bind machine I/O address range -> HVM address range. */
+/* XEN_DOMCTL_memory_mapping */
+/* Returns
+   - zero     success, everything done
+   - -E2BIG   passed in nr_mfns value too large for the implementation
+   - positive partial success for the first <result> page frames (with
+              <result> less than nr_mfns), requiring re-invocation by the
+              caller after updating inputs
+   - negative error; other than -E2BIG
+*/
+#define DPCI_ADD_MAPPING         1
+#define DPCI_REMOVE_MAPPING      0
+struct xen_domctl_memory_mapping {
+	uint64_aligned_t first_gfn; /* first page (hvm guest phys page) in range */
+	uint64_aligned_t first_mfn; /* first page (machine page) in range */
+	uint64_aligned_t nr_mfns;   /* number of pages in range (>0) */
+	uint32_t add_mapping;       /* add or remove mapping */
+	uint32_t padding;           /* padding for 64-bit aligned structure */
 };
 
 /*
@@ -265,6 +412,22 @@ struct xen_domctl_address_size {
 struct xen_domctl_cacheflush {
 	/* IN: page range to flush. */
 	xen_pfn_t start_pfn, nr_pfns;
+};
+
+/*
+ * XEN_DOMCTL_get_paging_mempool_size / XEN_DOMCTL_set_paging_mempool_size.
+ *
+ * Get or set the paging memory pool size.  The size is in bytes.
+ *
+ * This is a dedicated pool of memory for Xen to use while managing the guest,
+ * typically containing pagetables.  As such, there is an implementation
+ * specific minimum granularity.
+ *
+ * The set operation can fail mid-way through the request (e.g. Xen running
+ * out of memory, no free memory to reclaim from the pool, etc.).
+ */
+struct xen_domctl_paging_mempool {
+	uint64_aligned_t size; /* Size in bytes. */
 };
 
 struct xen_domctl {
@@ -352,6 +515,8 @@ struct xen_domctl {
 #define XEN_DOMCTL_get_cpu_policy                82
 #define XEN_DOMCTL_set_cpu_policy                83
 #define XEN_DOMCTL_vmtrace_op                    84
+#define XEN_DOMCTL_get_paging_mempool_size       85
+#define XEN_DOMCTL_set_paging_mempool_size       86
 #define XEN_DOMCTL_gdbsx_guestmemio            1000
 #define XEN_DOMCTL_gdbsx_pausevcpu             1001
 #define XEN_DOMCTL_gdbsx_unpausevcpu           1002
@@ -366,8 +531,13 @@ struct xen_domctl {
 		struct xen_domctl_vcpucontext       vcpucontext;
 		struct xen_domctl_max_vcpus         max_vcpus;
 		struct xen_domctl_scheduler_op      scheduler_op;
+		struct xen_domctl_iomem_permission  iomem_permission;
 		struct xen_domctl_address_size      address_size;
+		struct xen_domctl_assign_device     assign_device;
+		struct xen_domctl_bind_pt_irq       bind_pt_irq;
+		struct xen_domctl_memory_mapping    memory_mapping;
 		struct xen_domctl_cacheflush        cacheflush;
+		struct xen_domctl_paging_mempool    paging_mempool;
 		uint8_t                             pad[128];
 	} u;
 };
