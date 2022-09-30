@@ -92,7 +92,7 @@ int evtchn_set_priority(evtchn_port_t port, uint32_t priority)
 	return HYPERVISOR_event_channel_op(EVTCHNOP_set_priority, &set);
 }
 
-void notify_evtchn(evtchn_port_t port)
+int notify_evtchn(evtchn_port_t port)
 {
 	struct evtchn_send send;
 
@@ -102,7 +102,7 @@ void notify_evtchn(evtchn_port_t port)
 
 	send.port = port;
 
-	HYPERVISOR_event_channel_op(EVTCHNOP_send, &send);
+	return HYPERVISOR_event_channel_op(EVTCHNOP_send, &send);
 }
 
 int bind_event_channel(evtchn_port_t port, evtchn_cb_t cb, void *data)
@@ -177,7 +177,7 @@ int unmask_event_channel(evtchn_port_t port)
 	return 0;
 }
 
-static void clear_event_channel(evtchn_port_t port)
+void clear_event_channel(evtchn_port_t port)
 {
 	shared_info_t *s = HYPERVISOR_shared_info;
 
