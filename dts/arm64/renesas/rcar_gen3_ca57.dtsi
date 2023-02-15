@@ -28,6 +28,26 @@
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY>;
 	};
 
+	reg_3p3v: regulator_3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "reg_3p3v";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+		status = "okay";
+	};
+
+	reg_1p8v: regulator_1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "reg_1p8v";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		regulator-boot-on;
+		status = "okay";
+	};
+
 	gic: interrupt-controller@f1010000 {
 		compatible = "arm,gic-400", "arm,gic" ;
 		#interrupt-cells = <4>;
@@ -56,9 +76,11 @@
 		emmc2: mmc@ee140000 {
 			compatible = "renesas,rcar-mmc";
 			reg = <0 0xee140000 0 0x2000>;
+			vmmc-supply = <&reg_3p3v>;
+			vqmmc-supply = <&reg_1p8v>;
 			interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL
 				      IRQ_DEFAULT_PRIORITY>;
-			clocks = <&cpg CPG_MOD 312>;
+			clocks = <&cpg CPG_MOD 312>, <&cpg CPG_CORE R8A7795_CLK_SD2H>;
 			max-frequency = <200000000>;
 			status = "disabled";
 		};
