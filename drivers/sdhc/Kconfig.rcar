@@ -1,0 +1,26 @@
+# Copyright (c) 2023 EPAM Systems
+# SPDX-License-Identifier: Apache-2.0
+
+config MMC_RCAR
+	bool "Renesas Rcar MMC driver"
+	select SDHC_SUPPORTS_NATIVE_MODE
+	default n
+	help
+	  Renesas Rcar MMC driver.
+
+if MMC_RCAR
+
+config RCAR_MMC_DMA_SUPPORT
+	bool "Internal DMA support for Renesas Rcar MMC driver"
+	default n
+	help
+	  Internal DMA support for Renesas Rcar MMC driver.
+
+if RCAR_MMC_DMA_SUPPORT
+
+config SDHC_BUFFER_ALIGNMENT
+	default 128
+
+endif # IMX_USDHC_DMA_SUPPORT
+
+endif # MMC_RCAR
