@@ -62,6 +62,15 @@
 			status = "okay";
 		};
 
+		emmc2: mmc@ee140000 {
+			compatible = "renesas,rcar-mmc";
+			reg = <0xee140000 0x2000>;
+			interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY>;
+			clocks = <&cpg CPG_MOD 312>;
+			max-frequency = <200000000>;
+			status = "disabled";
+		};
+
 		pfc: pin-controller@e6060000 {
 			compatible = "renesas,rcar-pfc";
 			reg = <0xe6060000 0x50c>;
