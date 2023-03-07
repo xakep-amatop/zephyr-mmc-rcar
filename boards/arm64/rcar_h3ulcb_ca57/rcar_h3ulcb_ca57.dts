@@ -16,10 +16,32 @@
 		zephyr,console = &scif2;
 		zephyr,shell-uart = &scif2;
 	};
+
+	/* These aliases are provided for compatibility with samples */
+	aliases {
+		sdhc0 = &emmc2;
+	};
 };
 
 &scif2 {
 	pinctrl-0 = <&scif2_data_a_tx_default &scif2_data_a_rx_default>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+
+&emmc2 {
+	pinctrl-0 = <&sd_clk &sd_cmd &sd_ds
+			&sd_data0 &sd_data1 &sd_data2 &sd_data3
+			&sd_data4 &sd_data5 &sd_data6 &sd_data7>;
+	pinctrl-names = "default";
+	mmc {
+		compatible = "zephyr,mmc-disk";
+		status = "okay";
+	};
+	bus-width = <8>;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	mmc-sdr104-support;
+	non-removable;
 	status = "okay";
 };
