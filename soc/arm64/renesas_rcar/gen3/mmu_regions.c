@@ -39,6 +39,12 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      ROUND_UP_SIZE_MMU_PAGE_FOR_NODE(0, renesas_rcar_pfc),
 			      MT_DEVICE_nGnRnE | MT_RW | MT_NS),
 #endif
+#if DT_NODE_HAS_STATUS(DT_INST(0, xen_xen), okay)
+	MMU_REGION_FLAT_ENTRY("HYPERVISOR",
+			      DT_REG_ADDR_BY_IDX(DT_INST(0, xen_xen), 0),
+			      DT_REG_SIZE_BY_IDX(DT_INST(0, xen_xen), 0),
+			      MT_NORMAL | MT_P_RW_U_NA | MT_NS),
+#endif
 };
 
 const struct arm_mmu_config mmu_config = {
