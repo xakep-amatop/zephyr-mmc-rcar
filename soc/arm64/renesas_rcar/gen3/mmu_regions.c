@@ -32,12 +32,6 @@ static const struct arm_mmu_region mmu_regions[] = {
 			      DT_REG_ADDR(DT_INST(0, renesas_r8a7795_cpg_mssr)),
 			      DT_REG_SIZE(DT_INST(0, renesas_r8a7795_cpg_mssr)),
 			      MT_DEVICE_nGnRnE | MT_RW | MT_NS),
-#if DT_NODE_HAS_STATUS(DT_INST(0, renesas_rcar_mmc), okay)
-	MMU_REGION_FLAT_ENTRY("MMC",
-			      DT_REG_ADDR(DT_INST(0, renesas_rcar_mmc)),
-			      ROUND_UP_SIZE_MMU_PAGE_FOR_NODE(0, renesas_rcar_mmc),
-			      MT_DEVICE_nGnRnE | MT_RW | MT_NS),
-#endif
 
 #if DT_NODE_HAS_STATUS(DT_INST(0, renesas_rcar_pfc), okay)
 	MMU_REGION_FLAT_ENTRY("PFC",
