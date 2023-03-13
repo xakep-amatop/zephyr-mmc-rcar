@@ -1,0 +1,8 @@
+# Copyright (c) 2023 EPAM Systems
+# SPDX-License-Identifier: Apache-2.0
+
+config SHIELD_RCAR_MMC_H3ULCB_XENVM
+	def_bool $(shields_list_contains,rcar_mmc_h3ulcb_xenvm)
+
+config SHIELD_RCAR_MMC_H3ULCB
+	def_bool $(shields_list_contains,rcar_mmc_h3ulcb)

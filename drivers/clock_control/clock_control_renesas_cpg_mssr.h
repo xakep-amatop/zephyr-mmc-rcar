@@ -7,7 +7,7 @@
 #ifndef ZEPHYR_DRIVERS_RENESAS_RENESAS_CPG_MSSR_H_
 #define ZEPHYR_DRIVERS_RENESAS_RENESAS_CPG_MSSR_H_
 
-#ifdef CONFIG_SOC_SERIES_RCAR_GEN3
+#ifdef CONFIG_CLOCK_CONTROL_RCAR_CPG_MSSR
 /* Software Reset Clearing Register offsets */
 #define SRSTCLR(i)      (0x940 + (i) * 4)
 
@@ -41,7 +41,7 @@ static const uint16_t srcr[] = {
 /* Peripherals Clocks */
 #define S3D4_CLK_RATE             66600000	/* SCIF	*/
 #define S0D12_CLK_RATE            66600000	/* PWM	*/
-#endif /* CONFIG_SOC_SERIES_RCAR_GEN3 */
+#endif /* CONFIG_CLOCK_CONTROL_RCAR_CPG_MSSR */
 
 void rcar_cpg_write(uint32_t base_address, uint32_t reg, uint32_t val);
 

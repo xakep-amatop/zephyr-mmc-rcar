@@ -4,6 +4,7 @@
 config MMC_RCAR
 	bool "Renesas Rcar MMC driver"
 	select SDHC_SUPPORTS_NATIVE_MODE
+	depends on DT_HAS_RENESAS_RCAR_MMC_ENABLED
 	default n
 	help
 	  Renesas Rcar MMC driver.
