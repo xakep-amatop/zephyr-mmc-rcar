@@ -5,6 +5,12 @@ if SOC_XENVM
 
 menu "Xen drivers"
 
+config XEN_INITIAL_DOMAIN
+	bool "Zephyr as Xen Domain 0"
+	default n
+	help
+	  Built binary will be used as Xen privileged domain.
+
 config XEN_GRANT_TABLE
 	bool "Xen grant table driver"
 	depends on HEAP_MEM_POOL_SIZE > 0
