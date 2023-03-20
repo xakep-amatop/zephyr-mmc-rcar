@@ -312,6 +312,15 @@ typedef bool (*flash_page_cb)(const struct flash_pages_info *info, void *data);
  */
 void flash_page_foreach(const struct device *dev, flash_page_cb cb,
 			void *data);
+#else /* CONFIG_FLASH_PAGE_LAYOUT */
+
+/* function stubs */
+typedef bool (*flash_page_cb)(const struct flash_pages_info *info, void *data);
+
+static inline void
+flash_page_foreach(const struct device *dev, flash_page_cb cb, void *data)
+{}
+
 #endif /* CONFIG_FLASH_PAGE_LAYOUT */
 
 #if defined(CONFIG_FLASH_JESD216_API)

@@ -106,6 +106,8 @@ int flash_area_check_int_sha256(const struct flash_area *fa,
 				const struct flash_area_check *fac);
 #endif
 
+#if defined(CONFIG_FLASH_MAP)
+
 /**
  * @brief Retrieve partitions flash area from the flash_map.
  *
@@ -254,6 +256,79 @@ const struct device *flash_area_get_device(const struct flash_area *fa);
  * @return Byte value of erase memory.
  */
 uint8_t flash_area_erased_val(const struct flash_area *fa);
+
+#else /* CONFIG_FLASH_MAP */
+
+/* function stubs */
+
+static inline int
+flash_area_open(uint8_t id, const struct flash_area **fa)
+{
+	return -EACCES;
+}
+
+static inline void
+flash_area_close(const struct flash_area *fa)
+{}
+
+static inline int
+flash_area_read(const struct flash_area *fa, off_t off, void *dst, size_t len)
+{
+	return -EINVAL;
+}
+
+static inline int
+flash_area_write(const struct flash_area *fa, off_t off, const void *src,
+	size_t len)
+{
+	return -EINVAL;
+}
+
+static inline int
+flash_area_erase(const struct flash_area *fa, off_t off, size_t len)
+{
+	return -EINVAL;
+}
+
+static inline uint32_t
+flash_area_align(const struct flash_area *fa)
+{
+	return 0;
+}
+
+static inline int
+flash_area_get_sectors(int fa_id, uint32_t *count,
+	struct flash_sector *sectors)
+{
+	return -EINVAL;
+}
+
+typedef void (*flash_area_cb_t)(const struct flash_area *fa,
+				void *user_data);
+
+static inline void
+flash_area_foreach(flash_area_cb_t user_cb, void *user_data)
+{}
+
+static inline int
+flash_area_has_driver(const struct flash_area *fa)
+{
+	return -ENODEV;
+}
+
+static inline const struct device *
+flash_area_get_device(const struct flash_area *fa)
+{
+	return NULL;
+}
+
+static inline uint8_t
+flash_area_erased_val(const struct flash_area *fa)
+{
+	return 0;
+}
+
+#endif /* CONFIG_FLASH_MAP */
 
 #define FLASH_AREA_LABEL_EXISTS(label) __DEPRECATED_MACRO \
 	DT_HAS_FIXED_PARTITION_LABEL(label)
