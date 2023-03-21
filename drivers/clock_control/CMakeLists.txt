@@ -53,7 +53,7 @@ zephyr_library_sources_ifdef(CONFIG_SOC_SERIES_AGILEX clock_agilex.c)
 
 if(CONFIG_CLOCK_CONTROL_RCAR_CPG_MSSR)
   zephyr_library_sources(clock_control_renesas_cpg_mssr.c)
-if(CONFIG_SOC_R8A77951 OR CONFIG_SOC_R8A7795)
+if(CONFIG_SOC_R8A77951 OR CONFIG_SOC_R8A7795 OR CONFIG_SOC_R8A7796)
   zephyr_library_sources(clock_control_r8a7795_cpg_mssr.c)
 endif()
 endif()
