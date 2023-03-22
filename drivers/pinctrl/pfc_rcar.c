@@ -21,19 +21,23 @@
 #if defined(CONFIG_SOC_SERIES_RCAR_GEN3)
 #define PFC_RCAR_GPSR 0x100
 #define PFC_RCAR_IPSR 0x200
-DEVICE_MMIO_TOPLEVEL_STATIC(pfc, DT_DRV_INST(0));
-static uintptr_t reg_base[1];
 #elif defined(CONFIG_SOC_SERIES_RCAR_GEN4)
 #define PFC_RCAR_GPSR 0x040
 #define PFC_RCAR_IPSR 0x060
-/* swap both arguments */
-#define PFC_REG_ADDRESS(idx, node_id) DT_REG_ADDR_BY_IDX(node_id, idx)
-static const uintptr_t reg_base[] = {
-	LISTIFY(DT_NUM_REGS(DT_DRV_INST(0)), PFC_REG_ADDRESS, (,), DT_DRV_INST(0))
-};
 #else
 #error Unsupported SoC Series
 #endif
+
+/* swap both arguments */
+#define PFC_REG_ADDRESS(idx, node_id) DT_REG_ADDR_BY_IDX(node_id, idx)
+static uintptr_t reg_base[] = {
+	LISTIFY(DT_NUM_REGS(DT_DRV_INST(0)), PFC_REG_ADDRESS, (,), DT_DRV_INST(0))
+};
+
+#define PFC_REG_SIZE(idx, node_id) DT_REG_SIZE_BY_IDX(node_id, idx)
+static uintptr_t __maybe_unused reg_sizes[] = {
+	LISTIFY(DT_NUM_REGS(DT_DRV_INST(0)), PFC_REG_SIZE, (,), DT_DRV_INST(0))
+};
 
 /*
  * Each drive step is either encoded in 2 or 3 bits.
@@ -216,7 +220,10 @@ int pinctrl_configure_pin(const pinctrl_soc_pin_t *pin)
 
 	/* Select function for pin */
 	if ((pin->flags & RCAR_PIN_FLAGS_FUNC_SET) != 0U) {
-		pfc_rcar_set_ipsr(pfc_base, &pin->func);
+
+		if (pin->func.func != FUNC_DUMMY) {
+			pfc_rcar_set_ipsr(pfc_base, &pin->func);
+		}
 
 		if (RCAR_IS_GP_PIN(pin->pin)) {
 			pfc_rcar_set_gpsr(pfc_base, pin->pin, true);
@@ -254,11 +261,12 @@ int pinctrl_configure_pins(const pinctrl_soc_pin_t *pins, uint8_t pin_cnt,
 	return ret;
 }
 
-#if defined(CONFIG_SOC_SERIES_RCAR_GEN3)
+#if defined(DEVICE_MMIO_IS_IN_RAM)
 __boot_func static int pfc_rcar_driver_init(void)
 {
-	DEVICE_MMIO_TOPLEVEL_MAP(pfc, K_MEM_CACHE_NONE);
-	reg_base[0] = DEVICE_MMIO_TOPLEVEL_GET(pfc);
+	for (unsigned int i = 0; i < ARRAY_SIZE(reg_base); i++) {
+		device_map(reg_base + i, reg_base[i], reg_sizes[i], K_MEM_CACHE_NONE);
+	}
 	return 0;
 }
 
