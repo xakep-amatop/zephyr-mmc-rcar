@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Volodymyr Babchuk <volodymyr.babchuk@epam.com>
+# Copyright (c) 2023 EPAM Systems
 # SPDX-License-Identifier: Apache-2.0
 
 config BOARD_RCAR_H3ULCB_CA57
