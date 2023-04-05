@@ -27,6 +27,7 @@
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/device_mmio.h>
 
 LOG_MODULE_REGISTER(xen_gnttab);
 
@@ -37,6 +38,9 @@ LOG_MODULE_REGISTER(xen_gnttab);
 #define NR_GRANT_FRAMES			1
 #define NR_GRANT_ENTRIES \
 	(NR_GRANT_FRAMES * XEN_PAGE_SIZE / sizeof(grant_entry_v1_t))
+
+BUILD_ASSERT(DT_REG_SIZE_BY_IDX(DT_INST(0, xen_xen), 0) <= CONFIG_KERNEL_VM_SIZE);
+DEVICE_MMIO_TOPLEVEL_STATIC(grant_tables, DT_INST(0, xen_xen));
 
 static struct gnttab {
 	struct k_sem sem;
@@ -306,8 +310,8 @@ static int gnttab_init(const struct device *d)
 		put_free_entry(gref);
 	}
 
-	gnttab.table = (grant_entry_v1_t *)
-			DT_REG_ADDR_BY_IDX(DT_INST(0, xen_xen), 0);
+	DEVICE_MMIO_TOPLEVEL_MAP(grant_tables, K_MEM_CACHE_WB | K_MEM_PERM_RW);
+	gnttab.table = (grant_entry_v1_t *)DEVICE_MMIO_TOPLEVEL_GET(grant_tables);
 
 	for (i = 0; i < NR_GRANT_FRAMES; i++) {
 		xatp.domid = DOMID_SELF;
