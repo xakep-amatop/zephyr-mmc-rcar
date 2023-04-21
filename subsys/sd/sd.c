@@ -125,9 +125,14 @@ static int sd_init_io(struct sd_card *card)
 	bus_io->bus_mode = SDHC_BUSMODE_PUSHPULL;
 	bus_io->power_mode = SDHC_POWER_ON;
 	bus_io->bus_width = SDHC_BUS_WIDTH1BIT;
-	/* Cards start with legacy timing and 3.3V signalling at power on */
+	/*
+	 * SD cards start with legacy timing and 3.3V signalling at power on. However, the init
+	 * function can also be used by eMMC devices that may use only 1.8 voltage.
+	 */
 	bus_io->timing = SDHC_TIMING_LEGACY;
-	bus_io->signal_voltage = SD_VOL_3_3_V;
+	bus_io->signal_voltage = card->host_props.host_caps.vol_330_support ?
+				 SD_VOL_3_3_V :
+				 SD_VOL_1_8_V;
 
 	/* Toggle power to card to reset it */
 	LOG_DBG("Resetting power to card");
@@ -144,8 +149,12 @@ static int sd_init_io(struct sd_card *card)
 		LOG_ERR("Could not disable card power via SDHC");
 		return ret;
 	}
-	/* After reset or init, card voltage should be 3.3V */
-	card->card_voltage = SD_VOL_3_3_V;
+	/*
+	 * After reset or init, card SD voltage should be 3.3V, but it can be different for
+	 * eMMC devices, which may use only 1.8V.
+	 */
+	card->card_voltage = card->host_props.host_caps.vol_330_support ?
+			     SD_VOL_3_3_V : SD_VOL_1_8_V;
 	/* Reset card flags */
 	card->flags = 0U;
 	/* Delay so card can power up */
