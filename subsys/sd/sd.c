@@ -127,7 +127,9 @@ static int sd_init_io(struct sd_card *card)
 	bus_io->bus_width = SDHC_BUS_WIDTH1BIT;
 	/* Cards start with legacy timing and 3.3V signalling at power on */
 	bus_io->timing = SDHC_TIMING_LEGACY;
-	bus_io->signal_voltage = SD_VOL_3_3_V;
+	bus_io->signal_voltage = card->host_props.host_caps.vol_330_support ?
+				 SD_VOL_3_3_V :
+				 SD_VOL_1_8_V;
 
 	/* Toggle power to card to reset it */
 	LOG_DBG("Resetting power to card");
