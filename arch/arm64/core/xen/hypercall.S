@@ -24,3 +24,4 @@ HYPERCALL(sched_op);
 HYPERCALL(event_channel_op);
 HYPERCALL(hvm_op);
 HYPERCALL(memory_op);
+HYPERCALL(domctl);
