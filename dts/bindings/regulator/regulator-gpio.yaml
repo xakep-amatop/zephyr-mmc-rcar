@@ -1,0 +1,52 @@
+# Copyright 2023 EPAM Systems
+# SPDX-License-Identifier: Apache-2.0
+
+description: GPIO-controlled voltage of regulators
+
+include:
+  - name: base.yaml
+  - name: regulator.yaml
+    property-allowlist:
+      - regulator-name
+      - regulator-init-microvolt
+      - regulator-min-microvolt
+      - regulator-max-microvolt
+      - regulator-always-on
+      - regulator-boot-on
+
+compatible: "regulator-gpio"
+
+properties:
+  regulator-name:
+    required: true
+
+  gpios:
+    type: phandle-array
+    required: true
+    description: |
+      GPIO to use to switch voltage.
+
+  gpios-states:
+    type: int
+    description: |
+      On operating systems, that don't support reading back gpio values
+      in output mode (most notably linux), this array provides the
+      state of GPIO pins set when requesting them from the gpio
+      controller. Systems, that are capable of preserving state when
+      requesting the lines, are free to ignore this property.
+      0: LOW, 1: HIGH. Default is LOW if nothing else is specified.
+
+  states:
+    type: array
+    description: Selection of available voltages provided by this regulator and
+      matching GPIO configurations to achieve them. If there are no states in
+      the "states" array, use a fixed regulator instead. First value in an array
+      item is voltage in microvolts and the second is GPIO group state value.
+
+  enable-gpios:
+    type: phandle-array
+    description: GPIO to use to enable/disable the regulator.
+
+  startup-delay-us:
+    type: int
+    description: startup time in microseconds
