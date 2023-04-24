@@ -6,6 +6,7 @@ config MMC_RCAR
 	select SDHC_SUPPORTS_NATIVE_MODE
 	select REGULATOR
 	select GPIO
+	select REGULATOR_GPIO
 	default n
 	help
 	  Renesas Rcar MMC driver.
