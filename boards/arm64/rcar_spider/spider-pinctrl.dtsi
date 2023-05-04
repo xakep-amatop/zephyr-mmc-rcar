@@ -9,42 +9,52 @@
 &pfc {
 	mmc_clk: mmc_clk {
 		pin = <PIN_MMC_SD_CLK>;
+		power-source = <PIN_VOLTAGE_1P8V>;
 	};
 
 	mmc_cmd: mmc_cmd {
 		pin = <PIN_MMC_SD_CMD>;
+		power-source = <PIN_VOLTAGE_1P8V>;
 	};
 
 	mmc_data0: mmc_data0 {
 		pin = <PIN_MMC_SD_D0>;
+		power-source = <PIN_VOLTAGE_1P8V>;
 	};
 
 	mmc_data1: mmc_data1 {
 		pin = <PIN_MMC_SD_D1>;
+		power-source = <PIN_VOLTAGE_1P8V>;
 	};
 
 	mmc_data2: mmc_data2 {
 		pin = <PIN_MMC_SD_D2>;
+		power-source = <PIN_VOLTAGE_1P8V>;
 	};
 
 	mmc_data3: mmc_data3 {
 		pin = <PIN_MMC_SD_D3>;
+		power-source = <PIN_VOLTAGE_1P8V>;
 	};
 
 	mmc_data4: mmc_data4 {
 		pin = <PIN_MMC_D4>;
+		power-source = <PIN_VOLTAGE_1P8V>;
 	};
 
 	mmc_data5: mmc_data5 {
 		pin = <PIN_MMC_D5>;
+		power-source = <PIN_VOLTAGE_1P8V>;
 	};
 
 	mmc_data6: mmc_data6 {
 		pin = <PIN_MMC_D6>;
+		power-source = <PIN_VOLTAGE_1P8V>;
 	};
 
 	mmc_data7: mmc_data7 {
 		pin = <PIN_MMC_D7>;
+		power-source = <PIN_VOLTAGE_1P8V>;
 	};
 
 	mmc_ds: mmc_ds {
