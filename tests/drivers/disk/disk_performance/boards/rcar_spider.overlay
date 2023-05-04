@@ -1,0 +1,8 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+&mmc0 {
+	disk {
+		status = "okay";
+	};
+	status = "okay";
+};

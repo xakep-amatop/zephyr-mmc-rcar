@@ -8,3 +8,6 @@ tests:
     integration_platforms:
       - mimxrt1064_evk
       - mimxrt595_evk_cm33
+      - rcar_h3ulcb_ca57
+      - rcar_salvator_xs_m3
+      - rcar_spider
