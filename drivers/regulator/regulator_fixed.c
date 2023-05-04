@@ -31,6 +31,10 @@ static int regulator_fixed_enable(const struct device *dev)
 	const struct regulator_fixed_config *cfg = dev->config;
 	int ret;
 
+	if (!cfg->enable.port) {
+		return -ENOTSUP;
+	}
+
 	ret = gpio_pin_set_dt(&cfg->enable, 1);
 	if (ret < 0) {
 		return ret;
@@ -47,12 +51,49 @@ static int regulator_fixed_disable(const struct device *dev)
 {
 	const struct regulator_fixed_config *cfg = dev->config;
 
+	if (!cfg->enable.port) {
+		return -ENOTSUP;
+	}
+
 	return gpio_pin_set_dt(&cfg->enable, 0);
+}
+
+/* it's needed only to check volt range, see regulator_set_voltage */
+static int regulator_fixed_set_voltage(const struct device *dev,
+				       int32_t min_uv, int32_t max_uv)
+{
+	return 0;
+}
+
+static unsigned int regulator_fixed_count_voltages(const struct device *dev)
+{
+	return 1;
+}
+
+static int regulator_fixed_list_voltage(const struct device *dev,
+					unsigned int idx,
+					int32_t *volt_uv)
+{
+	const struct regulator_fixed_config *cfg = dev->config;
+
+	if (idx != 0) {
+		return -EINVAL;
+	}
+
+	if (cfg->common.min_uv == INT32_MIN) {
+		return -EINVAL;
+	}
+
+	*volt_uv = cfg->common.min_uv;
+	return 0;
 }
 
 static const struct regulator_driver_api regulator_fixed_api = {
 	.enable = regulator_fixed_enable,
 	.disable = regulator_fixed_disable,
+	.set_voltage = regulator_fixed_set_voltage,
+	.count_voltages = regulator_fixed_count_voltages,
+	.list_voltage = regulator_fixed_list_voltage,
 };
 
 static int regulator_fixed_init(const struct device *dev)
@@ -62,14 +103,16 @@ static int regulator_fixed_init(const struct device *dev)
 
 	regulator_common_data_init(dev);
 
-	if (!device_is_ready(cfg->enable.port)) {
-		LOG_ERR("GPIO port: %s not ready", cfg->enable.port->name);
-		return -ENODEV;
-	}
+	if (cfg->enable.port) {
+		if (!device_is_ready(cfg->enable.port)) {
+			LOG_ERR("GPIO port: %s not ready", cfg->enable.port->name);
+			return -ENODEV;
+		}
 
-	ret = gpio_pin_configure_dt(&cfg->enable, GPIO_OUTPUT_INACTIVE);
-	if (ret < 0) {
-		return ret;
+		ret = gpio_pin_configure_dt(&cfg->enable, GPIO_OUTPUT_INACTIVE);
+		if (ret < 0) {
+			return ret;
+		}
 	}
 
 	ret = regulator_common_init(dev, false);
@@ -91,7 +134,7 @@ static int regulator_fixed_init(const struct device *dev)
 		.common = REGULATOR_DT_INST_COMMON_CONFIG_INIT(inst),          \
 		.startup_delay_us = DT_INST_PROP(inst, startup_delay_us),      \
 		.off_on_delay_us = DT_INST_PROP(inst, off_on_delay_us),        \
-		.enable = GPIO_DT_SPEC_INST_GET(inst, enable_gpios),           \
+		.enable = GPIO_DT_SPEC_INST_GET_OR(inst, enable_gpios, {0}),    \
 	};                                                                     \
                                                                                \
 	DEVICE_DT_INST_DEFINE(inst, regulator_fixed_init, NULL, &data##inst,   \
