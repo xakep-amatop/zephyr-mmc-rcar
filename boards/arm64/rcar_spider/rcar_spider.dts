@@ -31,7 +31,10 @@
 	pinctrl-0 = <&mmc_clk &mmc_cmd &mmc_ds
 		&mmc_data0 &mmc_data1 &mmc_data2 &mmc_data3
 		&mmc_data4 &mmc_data5 &mmc_data6 &mmc_data7>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&mmc_clk &mmc_cmd &mmc_ds
+		&mmc_data0 &mmc_data1 &mmc_data2 &mmc_data3
+		&mmc_data4 &mmc_data5 &mmc_data6 &mmc_data7>;
+	pinctrl-names = "default", "uhs";
 	mmc {
 		compatible = "zephyr,mmc-disk";
 		status = "okay";
