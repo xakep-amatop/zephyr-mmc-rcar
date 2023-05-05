@@ -31,21 +31,19 @@
 };
 
 &emmc2 {
-	pinctrl-0 = <&sd_clk &sd_cmd &sd_ds
-			&sd_data0 &sd_data1 &sd_data2 &sd_data3
-			&sd_data4 &sd_data5 &sd_data6 &sd_data7>;
-	pinctrl-1 = <&sd_clk &sd_cmd &sd_ds
-			&sd_data0 &sd_data1 &sd_data2 &sd_data3
-			&sd_data4 &sd_data5 &sd_data6 &sd_data7>;
+	pinctrl-0 = <&emmc2_clk &emmc2_cmd &emmc2_ds
+		     &emmc2_data0 &emmc2_data1 &emmc2_data2 &emmc2_data3
+		     &emmc2_data4 &emmc2_data5 &emmc2_data6 &emmc2_data7>;
+	pinctrl-1 = <&emmc2_clk &emmc2_cmd &emmc2_ds
+		     &emmc2_data0 &emmc2_data1 &emmc2_data2 &emmc2_data3
+		     &emmc2_data4 &emmc2_data5 &emmc2_data6 &emmc2_data7>;
 	pinctrl-names = "default", "uhs";
-	mmc {
+	disk {
 		compatible = "zephyr,mmc-disk";
-		status = "okay";
+		status = "disabled";
 	};
 	bus-width = <8>;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
-	mmc-sdr104-support;
 	non-removable;
-	status = "okay";
 };

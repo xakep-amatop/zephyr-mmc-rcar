@@ -35,14 +35,13 @@
 		&mmc_data0 &mmc_data1 &mmc_data2 &mmc_data3
 		&mmc_data4 &mmc_data5 &mmc_data6 &mmc_data7>;
 	pinctrl-names = "default", "uhs";
-	mmc {
+	disk {
 		compatible = "zephyr,mmc-disk";
-		status = "okay";
+		status = "disabled";
 	};
 	bus-width = <8>;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
 	mmc-sdr104-support;
 	non-removable;
-	status = "okay";
 };
