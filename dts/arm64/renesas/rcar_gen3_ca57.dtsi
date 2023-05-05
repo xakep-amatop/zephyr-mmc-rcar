@@ -73,6 +73,27 @@
 			#reset-cells = <1>;
 		};
 
+		gpio5: gpio@e6055000 {
+			compatible = "renesas,rcar-gpio";
+			reg = <0 0xe6055000 0 0x50>;
+			#gpio-cells = <2>;
+			gpio-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY>;
+			clocks = <&cpg CPG_MOD 907>;
+			status = "disabled";
+		};
+
+		sd0: mmc@ee100000 {
+			compatible = "renesas,rcar-mmc";
+			reg = <0 0xee100000 0 0x2000>;
+			interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL
+				      IRQ_DEFAULT_PRIORITY>;
+			clocks = <&cpg CPG_MOD 314>, <&cpg CPG_CORE R8A7795_CLK_SD0H>;
+			max-frequency = <200000000>;
+			status = "disabled";
+		};
+
 		emmc2: mmc@ee140000 {
 			compatible = "renesas,rcar-mmc";
 			reg = <0 0xee140000 0 0x2000>;
