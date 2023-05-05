@@ -16,13 +16,13 @@ config RCAR_MMC_DMA_SUPPORT
 	bool "Internal DMA support for Renesas Rcar MMC driver"
 	select CACHE_MANAGEMENT
 	select DCACHE
-	default y
+	default n
 	help
 	  Internal DMA support for Renesas Rcar MMC driver.
 
 config RCAR_MMC_SCC_SUPPORT
 	bool "Support of SCC"
-	default y
+	default n
 	help
 	  Enable support of Sampling Clock Controller for Renesas Rcar MMC driver.
 

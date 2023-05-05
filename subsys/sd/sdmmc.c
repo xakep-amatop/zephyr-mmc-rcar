@@ -186,7 +186,6 @@ static int sdmmc_read_scr(struct sd_card *card)
 	raw_scr[0] = sys_be32_to_cpu(scr[0]);
 	raw_scr[1] = sys_be32_to_cpu(scr[1]);
 	sdmmc_decode_scr(&card_scr, raw_scr, &card->sd_version);
-	LOG_DBG("SD reports specification version %d", card->sd_version);
 	/* Check card supported bus width */
 	if (card_scr.sd_width & 0x4U) {
 		card->flags |= SD_4BITS_WIDTH;
@@ -199,6 +198,7 @@ static int sdmmc_read_scr(struct sd_card *card)
 	if (card_scr.cmd_support & 0x2U) {
 		card->flags |= SD_CMD23_FLAG;
 	}
+	LOG_INF("SD reports specification version %d %x %08x %08x", card->sd_version, card->flags, raw_scr[0], raw_scr[1]);
 	return 0;
 }
 

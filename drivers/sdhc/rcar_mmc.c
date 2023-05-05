@@ -539,6 +539,9 @@ static uint32_t rcar_mmc_gen_data_cmd(struct sdhc_command *cmd,
 	case SD_READ_SINGLE_BLOCK:
 	case MMC_SEND_TUNING_BLOCK:
 	case SD_SEND_TUNING_BLOCK:
+	case SD_APP_SEND_SCR:
+	case SD_SWITCH:
+	case SD_APP_SEND_NUM_WRITTEN_BLK:
 		cmd_reg |= RCAR_MMC_CMD_RD;
 		break;
 	case SD_READ_MULTIPLE_BLOCK:
@@ -1236,7 +1239,7 @@ static int rcar_mmc_set_clk_rate(const struct device *dev,
 
 	host_io->clock = ios->clock;
 
-	LOG_DBG("%s: set clock rate to %d",
+	LOG_INF("%s: set clock rate to %d",
 		dev->name, ios->clock);
 
 	return 0;
@@ -1482,7 +1485,7 @@ static int rcar_mmc_set_io(const struct device *dev, struct sdhc_io *ios)
 	data = dev->data;
 	host_io = &data->host_io;
 
-	LOG_DBG("SDHC I/O: bus width %d, clock %dHz, card power %s, "
+	LOG_INF("SDHC I/O: bus width %d, clock %dHz, card power %s, "
 		"timing %s, voltage %s",
 		ios->bus_width,
 		ios->clock,
@@ -2064,7 +2067,7 @@ static void rcar_mmc_init_host_props(const struct device *dev)
 		break;
 	}
 
-	host_caps->high_spd_support = 1;
+	host_caps->high_spd_support = 0;
 #if CONFIG_RCAR_MMC_SCC_SUPPORT
 	host_caps->sdr104_support = cfg->mmc_sdr104_support;
 	host_caps->sdr50_support = cfg->uhs_support;
