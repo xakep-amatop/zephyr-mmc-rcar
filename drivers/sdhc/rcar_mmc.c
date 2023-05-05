@@ -54,6 +54,7 @@ struct mmc_rcar_data {
 	uint8_t ddr_mode;
 	uint8_t dma_support;
 	uint8_t restore_cfg_after_reset;
+	uint8_t is_last_cmd_app_cmd; /* ACMD55 */
 
 #if CONFIG_RCAR_MMC_SCC_SUPPORT
 	uint8_t manual_retuning;
@@ -68,7 +69,6 @@ struct mmc_rcar_data {
 struct mmc_rcar_cfg {
 	DEVICE_MMIO_ROM; /* Must be first */
 	struct rcar_cpg_clk cpg_clk;
-	struct rcar_cpg_clk bus_clk;
 	const struct device *cpg_dev;
 	const struct pinctrl_dev_config *pcfg;
 	const struct device *regulator_vqmmc;
@@ -526,14 +526,16 @@ static void rcar_mmc_extract_resp(const struct device *dev,
  *
  * @note in/out parameters should be checked by a caller function.
  *
+ * @param dev MMC device
  * @param cmd MMC command
  * @param data MMC data buffer for tx/rx
  *
  * @retval partial configuration of CMD register
  */
-static uint32_t rcar_mmc_gen_data_cmd(struct sdhc_command *cmd,
+static uint32_t rcar_mmc_gen_data_cmd(const struct device *dev, struct sdhc_command *cmd,
 	struct sdhc_data *data)
 {
+	struct mmc_rcar_data *dev_data = dev->data;
 	uint32_t cmd_reg = RCAR_MMC_CMD_DATA;
 
 	switch (cmd->opcode) {
@@ -542,6 +544,11 @@ static uint32_t rcar_mmc_gen_data_cmd(struct sdhc_command *cmd,
 	case MMC_SEND_TUNING_BLOCK:
 	case SD_SEND_TUNING_BLOCK:
 		cmd_reg |= RCAR_MMC_CMD_RD;
+		break;
+	case SD_SWITCH:
+		if (!dev_data->is_last_cmd_app_cmd) {
+			cmd_reg |= RCAR_MMC_CMD_RD;
+		}
 		break;
 	case SD_READ_MULTIPLE_BLOCK:
 		cmd_reg |= RCAR_MMC_CMD_RD;
@@ -552,6 +559,21 @@ static uint32_t rcar_mmc_gen_data_cmd(struct sdhc_command *cmd,
 		break;
 	case SD_WRITE_SINGLE_BLOCK:
 		/* fall through */
+	default:
+		break;
+	}
+
+	switch(cmd->opcode) {
+	case SD_APP_SEND_OP_COND:
+	case SD_APP_SET_BUS_WIDTH:
+	case SD_APP_CMD:
+		cmd_reg |= RCAR_MMC_CMD_APP;
+		break;
+	case SD_APP_SEND_NUM_WRITTEN_BLK:
+	case SD_APP_SEND_SCR:
+		cmd_reg |= RCAR_MMC_CMD_RD;
+		cmd_reg |= RCAR_MMC_CMD_APP;
+		break;
 	default:
 		break;
 	}
@@ -937,11 +959,13 @@ static int rcar_mmc_request(const struct device *dev,
 	uint32_t response_type;
 	bool is_read = true;
 	int attempts;
+	struct mmc_rcar_data *dev_data;
 
 	if (!dev || !cmd) {
 		return -EINVAL;
 	}
 
+	dev_data = dev->data;
 	response_type = cmd->response_type & SDHC_NATIVE_RESPONSE_MASK;
 	attempts = cmd->retries + 1;
 
@@ -969,7 +993,7 @@ static int rcar_mmc_request(const struct device *dev,
 		if (data) {
 			rcar_mmc_write_reg32(dev, RCAR_MMC_SIZE, data->block_size);
 			rcar_mmc_write_reg32(dev, RCAR_MMC_SECCNT, data->blocks);
-			reg |= rcar_mmc_gen_data_cmd(cmd, data);
+			reg |= rcar_mmc_gen_data_cmd(dev, cmd, data);
 			is_read = (reg & RCAR_MMC_CMD_RD) ? true : false;
 		}
 
@@ -1018,6 +1042,8 @@ static int rcar_mmc_request(const struct device *dev,
 		rcar_mmc_retune_if_needed(dev, true);
 #endif
 	}
+
+	dev_data->is_last_cmd_app_cmd = (cmd->opcode == SD_APP_CMD) ? true : false;
 
 	return ret;
 }
@@ -2011,11 +2037,6 @@ static int rcar_mmc_init_start_clk(const struct mmc_rcar_cfg *cfg)
 	const struct device *cpg_dev = cfg->cpg_dev;
 	uintptr_t rate = cfg->max_frequency;
 
-	ret = clock_control_on(cpg_dev, (clock_control_subsys_t *)&cfg->bus_clk);
-	if (ret < 0) {
-		return ret;
-	}
-
 	ret = clock_control_on(cpg_dev, (clock_control_subsys_t *)&cfg->cpg_clk);
 	if (ret < 0) {
 		return ret;
@@ -2360,8 +2381,6 @@ exit_unmap:
 		.cpg_dev = DEVICE_DT_GET(DT_INST_CLOCKS_CTLR(n)), \
 		.cpg_clk.module = DT_INST_CLOCKS_CELL_BY_IDX(n, 0, module), \
 		.cpg_clk.domain = DT_INST_CLOCKS_CELL_BY_IDX(n, 0, domain), \
-		.bus_clk.module = DT_INST_CLOCKS_CELL_BY_IDX(n, 1, module), \
-		.bus_clk.domain = DT_INST_CLOCKS_CELL_BY_IDX(n, 1, domain), \
 		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n), \
 		.regulator_vqmmc = DEVICE_DT_GET(DT_PHANDLE(DT_DRV_INST(n), vqmmc_supply)), \
 		.regulator_vmmc = DEVICE_DT_GET(DT_PHANDLE(DT_DRV_INST(n), vmmc_supply)), \
