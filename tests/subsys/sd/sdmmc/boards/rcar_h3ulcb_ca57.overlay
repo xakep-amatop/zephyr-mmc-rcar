@@ -1,0 +1,13 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/ {
+	aliases {
+		sdhc0 = &sd0;
+	};
+};
+
+&sd0 {
+	disk {
+		status = "okay";
+	};
+	status = "okay";
+};

@@ -29,12 +29,23 @@ LOG_MODULE_REGISTER(rcar_mmc, CONFIG_LOG_DEFAULT_LEVEL);
 #define MMC_POLL_FLAGS_ONE_CYCLE_TIMEOUT_US 1
 #define MMC_DMA_RW_ONE_BLOCK_US 100
 #define MMC_BUS_CLOCK_FREQ 800000000
+/*
+ * SD/MMC clock for Gen3/Gen4 R-car boards can't be equal to 208 MHz,
+ * but we can run SDR104 on lower frequencies:
+ *    "SDR104: UHS-I 1.8V signaling, Frequency up to 208 MHz"
+ * so according to SD card standard it is possible to use lower frequencies,
+ * and we need to pass check of frequency in sdmmc in order to use sdr104 mode.
+ * This is the reason why it is needed this correction.
+ */
+#define MMC_MAX_FREQ_CORRECTION 8000000
 
 #if CONFIG_RCAR_MMC_DMA_SUPPORT
 #define ALIGN_BUF_DMA __aligned(CONFIG_SDHC_BUFFER_ALIGNMENT)
 #else
 #define ALIGN_BUF_DMA
 #endif
+#define RENESAS_TAPNUM 8
+#define RENESAS_TAPNUM_DDR 4
 
 /**
  * @brief Renesas MMC host controller driver data
@@ -54,9 +65,11 @@ struct mmc_rcar_data {
 	uint8_t ddr_mode;
 	uint8_t dma_support;
 	uint8_t restore_cfg_after_reset;
+	uint8_t is_last_cmd_app_cmd; /* ACMD55 */
 
 #if CONFIG_RCAR_MMC_SCC_SUPPORT
 	uint8_t manual_retuning;
+	uint8_t tapnum;
 	uint8_t tuning_buf[128] ALIGN_BUF_DMA;
 #endif /* CONFIG_RCAR_MMC_SCC_SUPPORT */
 	uint8_t can_retune;
@@ -384,8 +397,12 @@ static int rcar_mmc_reset(const struct device *dev)
 	}
 
 	data->ddr_mode = 0;
+#ifdef CONFIG_RCAR_MMC_SCC_SUPPORT
+	data->tapnum = RENESAS_TAPNUM;
+#endif
 	data->host_io.bus_width = SDHC_BUS_WIDTH4BIT;
 	data->host_io.timing = SDHC_TIMING_LEGACY;
+	data->is_last_cmd_app_cmd = 0;
 
 	return 0;
 }
@@ -528,14 +545,16 @@ static void rcar_mmc_extract_resp(const struct device *dev,
  *
  * @note in/out parameters should be checked by a caller function.
  *
+ * @param dev MMC device
  * @param cmd MMC command
  * @param data MMC data buffer for tx/rx
  *
  * @retval partial configuration of CMD register
  */
-static uint32_t rcar_mmc_gen_data_cmd(struct sdhc_command *cmd,
+static uint32_t rcar_mmc_gen_data_cmd(const struct device *dev, struct sdhc_command *cmd,
 	struct sdhc_data *data)
 {
+	struct mmc_rcar_data *dev_data = dev->data;
 	uint32_t cmd_reg = RCAR_MMC_CMD_DATA;
 
 	switch (cmd->opcode) {
@@ -544,6 +563,11 @@ static uint32_t rcar_mmc_gen_data_cmd(struct sdhc_command *cmd,
 	case MMC_SEND_TUNING_BLOCK:
 	case SD_SEND_TUNING_BLOCK:
 		cmd_reg |= RCAR_MMC_CMD_RD;
+		break;
+	case SD_SWITCH:
+		if (!dev_data->is_last_cmd_app_cmd) {
+			cmd_reg |= RCAR_MMC_CMD_RD;
+		}
 		break;
 	case SD_READ_MULTIPLE_BLOCK:
 		cmd_reg |= RCAR_MMC_CMD_RD;
@@ -554,6 +578,25 @@ static uint32_t rcar_mmc_gen_data_cmd(struct sdhc_command *cmd,
 		break;
 	case SD_WRITE_SINGLE_BLOCK:
 		/* fall through */
+	default:
+		break;
+	}
+
+	switch (cmd->opcode) {
+	case SD_APP_SEND_OP_COND:
+	case SD_APP_CMD:
+		cmd_reg |= RCAR_MMC_CMD_APP;
+		break;
+	case SD_APP_SET_BUS_WIDTH: /* number overlap with SD_SWITCH */
+		if (dev_data->is_last_cmd_app_cmd) {
+			cmd_reg |= RCAR_MMC_CMD_APP;
+		}
+		break;
+	case SD_APP_SEND_NUM_WRITTEN_BLK:
+	case SD_APP_SEND_SCR:
+		cmd_reg |= RCAR_MMC_CMD_RD;
+		cmd_reg |= RCAR_MMC_CMD_APP;
+		break;
 	default:
 		break;
 	}
@@ -939,11 +982,13 @@ static int rcar_mmc_request(const struct device *dev,
 	uint32_t response_type;
 	bool is_read = true;
 	int attempts;
+	struct mmc_rcar_data *dev_data;
 
 	if (!dev || !cmd) {
 		return -EINVAL;
 	}
 
+	dev_data = dev->data;
 	response_type = cmd->response_type & SDHC_NATIVE_RESPONSE_MASK;
 	attempts = cmd->retries + 1;
 
@@ -971,7 +1016,7 @@ static int rcar_mmc_request(const struct device *dev,
 		if (data) {
 			rcar_mmc_write_reg32(dev, RCAR_MMC_SIZE, data->block_size);
 			rcar_mmc_write_reg32(dev, RCAR_MMC_SECCNT, data->blocks);
-			reg |= rcar_mmc_gen_data_cmd(cmd, data);
+			reg |= rcar_mmc_gen_data_cmd(dev, cmd, data);
 			is_read = (reg & RCAR_MMC_CMD_RD) ? true : false;
 		}
 
@@ -1020,6 +1065,8 @@ static int rcar_mmc_request(const struct device *dev,
 		rcar_mmc_retune_if_needed(dev, true);
 #endif
 	}
+
+	dev_data->is_last_cmd_app_cmd = (cmd->opcode == SD_APP_CMD);
 
 	return ret;
 }
@@ -1172,6 +1219,7 @@ static int rcar_mmc_set_clk_rate(const struct device *dev,
 	uint32_t divisor;
 	uint32_t mmc_clk_ctl;
 	struct mmc_rcar_data *data = dev->data;
+	const struct mmc_rcar_cfg *cfg = dev->config;
 	struct sdhc_io *host_io = &data->host_io;
 
 	if (host_io->clock == ios->clock) {
@@ -1190,7 +1238,7 @@ static int rcar_mmc_set_clk_rate(const struct device *dev,
 		return -EINVAL;
 	}
 
-	divisor = ceiling_fraction(data->props.f_max, ios->clock);
+	divisor = ceiling_fraction(cfg->max_frequency, ios->clock);
 
 	/* Do not set divider to 0xff in DDR mode */
 	if (data->ddr_mode && (divisor == 1)) {
@@ -1343,6 +1391,7 @@ static int rcar_mmc_set_ddr_mode(const struct device *dev)
 	int ret = 0;
 	uint32_t if_mode_reg;
 	struct mmc_rcar_data *data = dev->data;
+	uint8_t tapnum = RENESAS_TAPNUM;
 
 	/*
 	 * Do not change the values of these bits
@@ -1358,11 +1407,16 @@ static int rcar_mmc_set_ddr_mode(const struct device *dev)
 	if (data->ddr_mode) {
 		/* HS400 mode (DDR mode) */
 		if_mode_reg |= RCAR_MMC_IF_MODE_DDR;
+		tapnum = RENESAS_TAPNUM_DDR;
 	} else {
 		/* Normal mode (default, high speed, or SDR) */
 		if_mode_reg &= ~RCAR_MMC_IF_MODE_DDR;
 	}
 	rcar_mmc_write_reg32(dev, RCAR_MMC_IF_MODE, if_mode_reg);
+
+#ifdef CONFIG_RCAR_MMC_SCC_SUPPORT
+	data->tapnum = tapnum;
+#endif
 
 	return 0;
 }
@@ -1411,6 +1465,7 @@ static int rcar_mmc_set_timings(const struct device *dev,
 		break;
 	case SDHC_TIMING_SDR12:
 	case SDHC_TIMING_SDR25:
+	case SDHC_TIMING_SDR50:
 		break;
 	case SDHC_TIMING_SDR104:
 		if (!data->props.host_caps.sdr104_support) {
@@ -1569,14 +1624,18 @@ static int rcar_mmc_set_io(const struct device *dev, struct sdhc_io *ios)
 			ret = rcar_mmc_enable_clock(dev, true);
 			break;
 		case SDHC_POWER_OFF:
-			ret = regulator_disable(cfg->regulator_vqmmc);
-			if (ret) {
-				break;
+			if (regulator_is_enabled(cfg->regulator_vqmmc)) {
+				ret = regulator_disable(cfg->regulator_vqmmc);
+				if (ret) {
+					break;
+				}
 			}
 
-			ret = regulator_disable(cfg->regulator_vmmc);
-			if (ret) {
-				break;
+			if (regulator_is_enabled(cfg->regulator_vmmc)) {
+				ret = regulator_disable(cfg->regulator_vmmc);
+				if (ret) {
+					break;
+				}
 			}
 
 			ret = rcar_mmc_enable_clock(dev, false);
@@ -1699,8 +1758,6 @@ static const uint8_t tun_block_4_bits_bus[] = {
 	0xbb, 0xff, 0xf7, 0xff, 0xf7, 0x7f, 0x7b, 0xde,
 };
 
-#define RENESAS_TAPNUM 8
-
 /**
  * @brief run MMC tuning
  *
@@ -1769,7 +1826,7 @@ static int rcar_mmc_execute_tuning(const struct device *dev)
 	rcar_mmc_write_reg32(dev, RENESAS_SDHI_SCC_DT2FF, 0x300);
 	/* SCC sampling clock operation is enabled */
 	rcar_mmc_write_reg32(dev, RENESAS_SDHI_SCC_DTCNTL, RENESAS_SDHI_SCC_DTCNTL_TAPEN |
-							   RENESAS_TAPNUM << 16);
+							   dev_data->tapnum << 16);
 	/* SCC sampling clock is used */
 	rcar_mmc_write_reg32(dev, RENESAS_SDHI_SCC_CKSEL, RENESAS_SDHI_SCC_CKSEL_DTSEL);
 	/* SCC sampling clock position correction is disabled */
@@ -1788,10 +1845,10 @@ static int rcar_mmc_execute_tuning(const struct device *dev)
 	 *   - two burns: 0b1000001110000011
 	 * it is more easly to detect 3 OK taps in a row
 	 */
-	for (tap_idx = 0; tap_idx < 2 * RENESAS_TAPNUM; tap_idx++) {
+	for (tap_idx = 0; tap_idx < 2 * dev_data->tapnum; tap_idx++) {
 		/* clear flags */
 		rcar_mmc_reset_and_mask_irqs(dev);
-		rcar_mmc_write_reg32(dev, RENESAS_SDHI_SCC_TAPSET, tap_idx % RENESAS_TAPNUM);
+		rcar_mmc_write_reg32(dev, RENESAS_SDHI_SCC_TAPSET, tap_idx % dev_data->tapnum);
 		memset(dev_data->tuning_buf, 0, data.block_size);
 		ret = rcar_mmc_request(dev, &cmd, &data);
 		if (ret) {
@@ -1823,11 +1880,11 @@ static int rcar_mmc_execute_tuning(const struct device *dev)
 	}
 
 	/* both parts of bitmasks have to be the same */
-	valid_taps &= (valid_taps >> RENESAS_TAPNUM);
-	valid_taps |= (valid_taps << RENESAS_TAPNUM);
+	valid_taps &= (valid_taps >> dev_data->tapnum);
+	valid_taps |= (valid_taps << dev_data->tapnum);
 
-	smpcmp_bitmask &= (smpcmp_bitmask >> RENESAS_TAPNUM);
-	smpcmp_bitmask |= (smpcmp_bitmask << RENESAS_TAPNUM);
+	smpcmp_bitmask &= (smpcmp_bitmask >> dev_data->tapnum);
+	smpcmp_bitmask |= (smpcmp_bitmask << dev_data->tapnum);
 
 	rcar_mmc_write_reg32(dev, RENESAS_SDHI_SCC_RVSREQ, 0);
 
@@ -1841,7 +1898,7 @@ static int rcar_mmc_execute_tuning(const struct device *dev)
 	 * the change point of data. Change point of the data can be found in the value of
 	 * SCC_SMPCMP register
 	 */
-	if ((valid_taps >> RENESAS_TAPNUM) == (1 << RENESAS_TAPNUM) - 1) {
+	if ((valid_taps >> dev_data->tapnum) == (1 << dev_data->tapnum) - 1) {
 		valid_taps = smpcmp_bitmask;
 	}
 
@@ -1852,7 +1909,7 @@ static int rcar_mmc_execute_tuning(const struct device *dev)
 		uint32_t pos_of_lsb_set = 0;
 
 		/* all bits are set */
-		if ((valid_taps >> RENESAS_TAPNUM) == (1 << RENESAS_TAPNUM) - 1) {
+		if ((valid_taps >> dev_data->tapnum) == (1 << dev_data->tapnum) - 1) {
 			rcar_mmc_write_reg32(dev, RENESAS_SDHI_SCC_TAPSET, 0);
 
 			if (!dev_data->manual_retuning) {
@@ -1885,7 +1942,7 @@ static int rcar_mmc_execute_tuning(const struct device *dev)
 			pos_of_lsb_set += num_bits_in_range;
 		}
 
-		tap_idx = (max_len_range_pos + max_bits_in_range / 2) % RENESAS_TAPNUM;
+		tap_idx = (max_len_range_pos + max_bits_in_range / 2) % dev_data->tapnum;
 		rcar_mmc_write_reg32(dev, RENESAS_SDHI_SCC_TAPSET, tap_idx);
 
 		LOG_DBG("%s: valid_taps %08x smpcmp_bitmask %08x tap_idx %u",
@@ -1942,10 +1999,10 @@ static int rcar_mmc_retune_if_needed(const struct device *dev, bool request_retu
 
 	switch (reg & RENESAS_SDHI_SCC_RVSREQ_REQTAP_MASK) {
 	case RENESAS_SDHI_SCC_RVSREQ_REQTAPDOWN:
-		scc_tapset = (scc_tapset - 1) % RENESAS_TAPNUM;
+		scc_tapset = (scc_tapset - 1) % dev_data->tapnum;
 		break;
 	case RENESAS_SDHI_SCC_RVSREQ_REQTAPUP:
-		scc_tapset = (scc_tapset + 1) % RENESAS_TAPNUM;
+		scc_tapset = (scc_tapset + 1) % dev_data->tapnum;
 		break;
 	default:
 		ret = -EINVAL;
@@ -2057,7 +2114,7 @@ static void rcar_mmc_init_host_props(const struct device *dev)
 
 	/* Note: init only properties that are used for mmc/sdhc */
 
-	props->f_max = cfg->max_frequency;
+	props->f_max = cfg->max_frequency + MMC_MAX_FREQ_CORRECTION;
 	/*
 	 * note: actually, it's possible to get lower frequency
 	 *       if we use divider from cpg too
@@ -2224,6 +2281,9 @@ static int rcar_mmc_init_controller_regs(const struct device *dev)
 	rcar_mmc_set_clk_rate(dev, &ios);
 
 	data->restore_cfg_after_reset = 1;
+#ifdef CONFIG_RCAR_MMC_SCC_SUPPORT
+	data->tapnum = RENESAS_TAPNUM;
+#endif
 
 	return 0;
 }
