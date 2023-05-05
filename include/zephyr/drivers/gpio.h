@@ -428,6 +428,7 @@ struct gpio_dt_spec {
  * in the device structure.
  */
 struct gpio_driver_config {
+	DEVICE_MMIO_ROM; /* Must be first */
 	/* Mask identifying pins supported by the controller.
 	 *
 	 * Initialization of this mask is the responsibility of device
@@ -441,6 +442,7 @@ struct gpio_driver_config {
  * element in the driver's struct driver_data declaration.
  */
 struct gpio_driver_data {
+	DEVICE_MMIO_RAM; /* Must be first */
 	/* Mask identifying pins that are configured as active low.
 	 *
 	 * Management of this mask is the responsibility of the
