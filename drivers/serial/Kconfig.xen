@@ -18,7 +18,7 @@ config UART_XEN_HVC
 config UART_XEN_HVC_CONSOLEIO
 	bool "Xen hypervisor Dom0 console UART driver"
 	select SERIAL_HAS_DRIVER
-	depends on BOARD_XENVM
+	depends on BOARD_XENVM || SHIELD_XENVM_DOM0
 	depends on XEN_INITIAL_DOMAIN
 	default y
 	help
