@@ -367,6 +367,8 @@ static int rcar_mmc_reset(const struct device *dev)
 		memcpy(&ios, &data->host_io, sizeof(ios));
 		memset(&data->host_io, 0, sizeof(ios));
 
+		data->host_io.power_mode = ios.power_mode;
+
 		ret = sdhc_set_io(dev, &ios);
 
 		rcar_mmc_write_reg32(dev, RCAR_MMC_STOP, RCAR_MMC_STOP_SEC);
@@ -1203,7 +1205,8 @@ static int rcar_mmc_set_clk_rate(const struct device *dev,
 	}
 
 	if (ios->clock == 0) {
-		return 0;
+		host_io->clock = 0;
+		return rcar_mmc_enable_clock(dev, false);
 	}
 
 	if (ios->clock > data->props.f_max ||
@@ -1482,6 +1485,8 @@ static int rcar_mmc_set_timings(const struct device *dev,
 	return 0;
 }
 
+static int rcar_mmc_init_controller_regs(const struct device *dev);
+
 /**
  * @brief set I/O properties of MMC
  *
@@ -1590,6 +1595,8 @@ static int rcar_mmc_set_io(const struct device *dev, struct sdhc_io *ios)
 
 			k_msleep(data->props.power_delay);
 			ret = rcar_mmc_enable_clock(dev, true);
+			data->restore_cfg_after_reset = 0;
+			rcar_mmc_init_controller_regs(dev);
 			break;
 		case SDHC_POWER_OFF:
 			ret = regulator_disable(cfg->regulator_vqmmc);
@@ -2048,9 +2055,6 @@ static int rcar_mmc_init_start_clk(const struct mmc_rcar_cfg *cfg)
 		clock_control_off(cpg_dev, (clock_control_subsys_t *)&cfg->cpg_clk);
 	}
 
-	rate = MMC_BUS_CLOCK_FREQ;
-	ret = clock_control_set_rate(cpg_dev, (clock_control_subsys_t *)&cfg->bus_clk,
-				     (clock_control_subsys_rate_t)rate);
 	/* SD spec recommends at least 1 ms of delay after start of clock */
 	k_msleep(1);
 
