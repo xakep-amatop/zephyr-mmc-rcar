@@ -178,7 +178,7 @@ static int rcar_mmc_card_busy(const struct device *dev)
 	}
 
 	reg = rcar_mmc_read_reg32(dev, RCAR_MMC_INFO2);
-	return (reg & RCAR_MMC_INFO2_CBSY) ? 1 : 0;
+	return (reg & RCAR_MMC_INFO2_DAT0) ? 0 : 1;
 }
 
 /**
