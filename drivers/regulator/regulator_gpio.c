@@ -95,7 +95,7 @@ static int regulator_gpio_set_voltage(const struct device *dev, int32_t min_uv, 
 		return -EINVAL;
 	}
 
-	ret = gpio_pin_set_dt(&cfg->switch_volt, best_state);
+	ret = gpio_pin_set_dt(&cfg->switch_volt, cfg->states[best_state * 2 + 1]);
 	if (ret < 0) {
 		return ret;
 	}
