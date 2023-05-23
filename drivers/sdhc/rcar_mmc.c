@@ -178,7 +178,7 @@ static int rcar_mmc_card_busy(const struct device *dev)
 	}
 
 	reg = rcar_mmc_read_reg32(dev, RCAR_MMC_INFO2);
-	return (reg & RCAR_MMC_INFO2_CBSY) ? 1 : 0;
+	return (reg & RCAR_MMC_INFO2_DAT0) ? 0 : 1;
 }
 
 /**
@@ -366,6 +366,8 @@ static int rcar_mmc_reset(const struct device *dev)
 
 		memcpy(&ios, &data->host_io, sizeof(ios));
 		memset(&data->host_io, 0, sizeof(ios));
+
+		data->host_io.power_mode = ios.power_mode;
 
 		ret = sdhc_set_io(dev, &ios);
 
@@ -1177,7 +1179,8 @@ static int rcar_mmc_set_clk_rate(const struct device *dev,
 	}
 
 	if (ios->clock == 0) {
-		return 0;
+		host_io->clock = 0;
+		return rcar_mmc_enable_clock(dev, false);
 	}
 
 	if (ios->clock > data->props.f_max ||
