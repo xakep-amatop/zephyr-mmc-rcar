@@ -39,7 +39,7 @@ LOG_MODULE_REGISTER(rcar_mmc, CONFIG_LOG_DEFAULT_LEVEL);
  */
 #define MMC_MAX_FREQ_CORRECTION 8000000
 
-#if CONFIG_RCAR_MMC_DMA_SUPPORT
+#ifdef CONFIG_RCAR_MMC_DMA_SUPPORT
 #define ALIGN_BUF_DMA __aligned(CONFIG_SDHC_BUFFER_ALIGNMENT)
 #else
 #define ALIGN_BUF_DMA
@@ -67,7 +67,7 @@ struct mmc_rcar_data {
 	uint8_t restore_cfg_after_reset;
 	uint8_t is_last_cmd_app_cmd; /* ACMD55 */
 
-#if CONFIG_RCAR_MMC_SCC_SUPPORT
+#ifdef CONFIG_RCAR_MMC_SCC_SUPPORT
 	uint8_t manual_retuning;
 	uint8_t tapnum;
 	uint8_t tuning_buf[128] ALIGN_BUF_DMA;
@@ -101,7 +101,7 @@ struct mmc_rcar_cfg {
 	uint8_t mmc_sdr104_support;
 };
 
-#if CONFIG_RCAR_MMC_SCC_SUPPORT
+#ifdef CONFIG_RCAR_MMC_SCC_SUPPORT
 static int rcar_mmc_execute_tuning(const struct device *dev);
 static int rcar_mmc_retune_if_needed(const struct device *dev, bool request_retune);
 #endif
@@ -386,7 +386,7 @@ static int rcar_mmc_reset(const struct device *dev)
 
 		rcar_mmc_write_reg32(dev, RCAR_MMC_STOP, RCAR_MMC_STOP_SEC);
 
-#if CONFIG_RCAR_MMC_SCC_SUPPORT
+#ifdef CONFIG_RCAR_MMC_SCC_SUPPORT
 		/* tune if this reset isn't invoked during tuning */
 		if (can_retune && (ios.timing == SDHC_TIMING_HS200)) {
 			ret = rcar_mmc_execute_tuning(dev);
@@ -995,7 +995,7 @@ static int rcar_mmc_request(const struct device *dev,
 	while (ret && attempts-- > 0) {
 		if (ret != -ENOTSUP) {
 			rcar_mmc_reset(dev);
-#if CONFIG_RCAR_MMC_SCC_SUPPORT
+#ifdef CONFIG_RCAR_MMC_SCC_SUPPORT
 			rcar_mmc_retune_if_needed(dev, true);
 #endif
 		}
@@ -1061,7 +1061,7 @@ static int rcar_mmc_request(const struct device *dev,
 
 	if (ret) {
 		rcar_mmc_reset(dev);
-#if CONFIG_RCAR_MMC_SCC_SUPPORT
+#ifdef CONFIG_RCAR_MMC_SCC_SUPPORT
 		rcar_mmc_retune_if_needed(dev, true);
 #endif
 	}
@@ -1718,7 +1718,7 @@ static int rcar_mmc_get_card_present(const struct device *dev)
 	return !!(rcar_mmc_read_reg32(dev, RCAR_MMC_INFO1) & RCAR_MMC_INFO1_CD);
 }
 
-#if CONFIG_RCAR_MMC_SCC_SUPPORT
+#ifdef CONFIG_RCAR_MMC_SCC_SUPPORT
 
 /* JESD84-B51, 6.6.5.1 Sampling Tuning Sequence for HS200 */
 static const uint8_t tun_block_8_bits_bus[] = {
@@ -2048,7 +2048,7 @@ static int rcar_mmc_get_host_props(const struct device *dev,
 
 static const struct sdhc_driver_api rcar_sdhc_api = {
 	.card_busy = rcar_mmc_card_busy,
-#if CONFIG_RCAR_MMC_SCC_SUPPORT
+#ifdef CONFIG_RCAR_MMC_SCC_SUPPORT
 	.execute_tuning = rcar_mmc_execute_tuning,
 #endif
 	.get_card_present = rcar_mmc_get_card_present,
@@ -2135,7 +2135,7 @@ static void rcar_mmc_init_host_props(const struct device *dev)
 	}
 
 	host_caps->high_spd_support = 1;
-#if CONFIG_RCAR_MMC_SCC_SUPPORT
+#ifdef CONFIG_RCAR_MMC_SCC_SUPPORT
 	host_caps->sdr104_support = cfg->mmc_sdr104_support;
 	host_caps->sdr50_support = cfg->uhs_support;
 	host_caps->ddr50_support = cfg->uhs_support;
