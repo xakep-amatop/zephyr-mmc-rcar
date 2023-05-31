@@ -1569,14 +1569,18 @@ static int rcar_mmc_set_io(const struct device *dev, struct sdhc_io *ios)
 			ret = rcar_mmc_enable_clock(dev, true);
 			break;
 		case SDHC_POWER_OFF:
-			ret = regulator_disable(cfg->regulator_vqmmc);
-			if (ret) {
-				break;
+			if (regulator_is_enabled(cfg->regulator_vqmmc)) {
+				ret = regulator_disable(cfg->regulator_vqmmc);
+				if (ret) {
+					break;
+				}
 			}
 
-			ret = regulator_disable(cfg->regulator_vmmc);
-			if (ret) {
-				break;
+			if (regulator_is_enabled(cfg->regulator_vmmc)) {
+				ret = regulator_disable(cfg->regulator_vmmc);
+				if (ret) {
+					break;
+				}
 			}
 
 			ret = rcar_mmc_enable_clock(dev, false);
