@@ -29,6 +29,15 @@ LOG_MODULE_REGISTER(rcar_mmc, CONFIG_LOG_DEFAULT_LEVEL);
 #define MMC_POLL_FLAGS_ONE_CYCLE_TIMEOUT_US 1
 #define MMC_DMA_RW_ONE_BLOCK_US 100
 #define MMC_BUS_CLOCK_FREQ 800000000
+/*
+ * SD/MMC clock for Gen3/Gen4 R-car boards can't be equal to 208 MHz,
+ * but we can run SDR104 on lower frequencies:
+ *    "SDR104: UHS-I 1.8V signaling, Frequency up to 208 MHz"
+ * so according to SD card standard it is possible to use lower frequencies,
+ * and we need to pass check of frequency in sdmmc in order to use sdr104 mode.
+ * This is the reason why it is needed this correction.
+ */
+#define MMC_MAX_FREQ_CORRECTION 8000000
 
 #ifdef CONFIG_RCAR_MMC_DMA_SUPPORT
 #define ALIGN_BUF_DMA __aligned(CONFIG_SDHC_BUFFER_ALIGNMENT)
@@ -1186,6 +1195,7 @@ static int rcar_mmc_set_clk_rate(const struct device *dev,
 	uint32_t divisor;
 	uint32_t mmc_clk_ctl;
 	struct mmc_rcar_data *data = dev->data;
+	const struct mmc_rcar_cfg *cfg = dev->config;
 	struct sdhc_io *host_io = &data->host_io;
 
 	if (host_io->clock == ios->clock) {
@@ -1204,7 +1214,7 @@ static int rcar_mmc_set_clk_rate(const struct device *dev,
 		return -EINVAL;
 	}
 
-	divisor = ceiling_fraction(data->props.f_max, ios->clock);
+	divisor = ceiling_fraction(cfg->max_frequency, ios->clock);
 
 	/* Do not set divider to 0xff in DDR mode */
 	if (data->ddr_mode && (divisor == 1)) {
@@ -2076,7 +2086,7 @@ static void rcar_mmc_init_host_props(const struct device *dev)
 
 	/* Note: init only properties that are used for mmc/sdhc */
 
-	props->f_max = cfg->max_frequency;
+	props->f_max = cfg->max_frequency + MMC_MAX_FREQ_CORRECTION;
 	/*
 	 * note: actually, it's possible to get lower frequency
 	 *       if we use divider from cpg too
