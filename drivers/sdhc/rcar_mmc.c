@@ -54,6 +54,7 @@ struct mmc_rcar_data {
 	uint8_t ddr_mode;
 	uint8_t dma_support;
 	uint8_t restore_cfg_after_reset;
+	uint8_t is_last_cmd_app_cmd; /* ACMD55 */
 
 #ifdef CONFIG_RCAR_MMC_SCC_SUPPORT
 	uint8_t manual_retuning;
@@ -386,6 +387,7 @@ static int rcar_mmc_reset(const struct device *dev)
 	data->ddr_mode = 0;
 	data->host_io.bus_width = SDHC_BUS_WIDTH4BIT;
 	data->host_io.timing = SDHC_TIMING_LEGACY;
+	data->is_last_cmd_app_cmd = 0;
 
 	return 0;
 }
@@ -543,6 +545,9 @@ static uint32_t rcar_mmc_gen_data_cmd(struct sdhc_command *cmd,
 	case SD_READ_SINGLE_BLOCK:
 	case MMC_SEND_TUNING_BLOCK:
 	case SD_SEND_TUNING_BLOCK:
+	case SD_SWITCH:
+	case SD_APP_SEND_NUM_WRITTEN_BLK:
+	case SD_APP_SEND_SCR:
 		cmd_reg |= RCAR_MMC_CMD_RD;
 		break;
 	case SD_READ_MULTIPLE_BLOCK:
@@ -939,11 +944,13 @@ static int rcar_mmc_request(const struct device *dev,
 	uint32_t response_type;
 	bool is_read = true;
 	int attempts;
+	struct mmc_rcar_data *dev_data;
 
 	if (!dev || !cmd) {
 		return -EINVAL;
 	}
 
+	dev_data = dev->data;
 	response_type = cmd->response_type & SDHC_NATIVE_RESPONSE_MASK;
 	attempts = cmd->retries + 1;
 
@@ -973,6 +980,11 @@ static int rcar_mmc_request(const struct device *dev,
 			rcar_mmc_write_reg32(dev, RCAR_MMC_SECCNT, data->blocks);
 			reg |= rcar_mmc_gen_data_cmd(cmd, data);
 			is_read = (reg & RCAR_MMC_CMD_RD) ? true : false;
+		}
+
+		/* CMD55 is always sended before ACMD */
+		if (dev_data->is_last_cmd_app_cmd) {
+			reg |= RCAR_MMC_CMD_APP;
 		}
 
 		ret = rcar_mmc_convert_sd_to_mmc_resp(response_type);
@@ -1020,6 +1032,8 @@ static int rcar_mmc_request(const struct device *dev,
 		rcar_mmc_retune_if_needed(dev, true);
 #endif
 	}
+
+	dev_data->is_last_cmd_app_cmd = (cmd->opcode == SD_APP_CMD);
 
 	return ret;
 }
