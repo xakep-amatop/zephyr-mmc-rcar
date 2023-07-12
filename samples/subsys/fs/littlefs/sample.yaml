@@ -15,6 +15,8 @@ tests:
       - mimxrt1160_evk_cm7
       - lpcxpresso55s69_cpu0
       - mr_canhubk3
+      - rcar_h3ulcb_ca57
+      - rcar_salvator_xs_m3
     tags: filesystem
     integration_platforms:
       - nrf52840dk_nrf52840
