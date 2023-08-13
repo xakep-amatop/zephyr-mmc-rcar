@@ -17,7 +17,7 @@
 #include "clock_control_renesas_cpg_mssr.h"
 #include <zephyr/logging/log.h>
 
-LOG_MODULE_DECLARE(clock_control_rcar);
+LOG_MODULE_DECLARE(clock_control_renesas);
 
 #define R8A7795_CLK_SD_STOP_BIT 8
 #define R8A7795_CLK_SD_DIV_MASK 0x3
@@ -35,40 +35,40 @@ struct r8a7795_cpg_mssr_config {
 };
 
 struct r8a7795_cpg_mssr_data {
-	struct rcar_cpg_mssr_data cmn; /* Must be first */
+	struct renesas_cpg_mssr_data cmn; /* Must be first */
 };
 
 /* NOTE: the array MUST be sorted by module field */
 static struct cpg_clk_info_table core_props[] = {
-	RCAR_CORE_CLK_INFO_ITEM(R8A7795_CLK_S3D4, RCAR_CPG_NONE,
-				RCAR_CPG_NONE, RCAR_CPG_KHZ(66600)),
+	RENESAS_CORE_CLK_INFO_ITEM(R8A7795_CLK_S3D4, RENESAS_CPG_NONE,
+				RENESAS_CPG_NONE, RENESAS_CPG_KHZ(66600)),
 
-	RCAR_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD0H, 0x0074, RCAR_CPG_NONE, RCAR_CPG_MHZ(800)),
-	RCAR_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD0, 0x0074, R8A7795_CLK_SD0H, RCAR_CPG_MHZ(800)),
+	RENESAS_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD0H, 0x0074, RENESAS_CPG_NONE, RENESAS_CPG_MHZ(800)),
+	RENESAS_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD0, 0x0074, R8A7795_CLK_SD0H, RENESAS_CPG_MHZ(800)),
 
-	RCAR_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD1H, 0x0078, RCAR_CPG_NONE, RCAR_CPG_MHZ(800)),
-	RCAR_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD1, 0x0078, R8A7795_CLK_SD1H, RCAR_CPG_MHZ(800)),
+	RENESAS_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD1H, 0x0078, RENESAS_CPG_NONE, RENESAS_CPG_MHZ(800)),
+	RENESAS_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD1, 0x0078, R8A7795_CLK_SD1H, RENESAS_CPG_MHZ(800)),
 
-	RCAR_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD2H, 0x0268, RCAR_CPG_NONE, RCAR_CPG_MHZ(800)),
-	RCAR_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD2, 0x0268, R8A7795_CLK_SD2H, RCAR_CPG_MHZ(800)),
+	RENESAS_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD2H, 0x0268, RENESAS_CPG_NONE, RENESAS_CPG_MHZ(800)),
+	RENESAS_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD2, 0x0268, R8A7795_CLK_SD2H, RENESAS_CPG_MHZ(800)),
 
-	RCAR_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD3H, 0x026C, RCAR_CPG_NONE, RCAR_CPG_MHZ(800)),
-	RCAR_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD3, 0x026C, R8A7795_CLK_SD3H, RCAR_CPG_MHZ(800)),
+	RENESAS_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD3H, 0x026C, RENESAS_CPG_NONE, RENESAS_CPG_MHZ(800)),
+	RENESAS_CORE_CLK_INFO_ITEM(R8A7795_CLK_SD3, 0x026C, R8A7795_CLK_SD3H, RENESAS_CPG_MHZ(800)),
 
-	RCAR_CORE_CLK_INFO_ITEM(R8A7795_CLK_CANFD, 0x0244, RCAR_CPG_NONE, RCAR_CPG_MHZ(800)),
+	RENESAS_CORE_CLK_INFO_ITEM(R8A7795_CLK_CANFD, 0x0244, RENESAS_CPG_NONE, RENESAS_CPG_MHZ(800)),
 
-	RCAR_CORE_CLK_INFO_ITEM(R8A7795_CLK_S0D12, RCAR_CPG_NONE,
-				RCAR_CPG_NONE, RCAR_CPG_KHZ(66600)),
+	RENESAS_CORE_CLK_INFO_ITEM(R8A7795_CLK_S0D12, RENESAS_CPG_NONE,
+				RENESAS_CPG_NONE, RENESAS_CPG_KHZ(66600)),
 };
 
 /* NOTE: the array MUST be sorted by module field */
 static struct cpg_clk_info_table mod_props[] = {
-	RCAR_MOD_CLK_INFO_ITEM(310, R8A7795_CLK_S3D4),
+	RENESAS_MOD_CLK_INFO_ITEM(310, R8A7795_CLK_S3D4),
 
-	RCAR_MOD_CLK_INFO_ITEM(311, R8A7795_CLK_SD3),
-	RCAR_MOD_CLK_INFO_ITEM(312, R8A7795_CLK_SD2),
-	RCAR_MOD_CLK_INFO_ITEM(313, R8A7795_CLK_SD1),
-	RCAR_MOD_CLK_INFO_ITEM(314, R8A7795_CLK_SD0),
+	RENESAS_MOD_CLK_INFO_ITEM(311, R8A7795_CLK_SD3),
+	RENESAS_MOD_CLK_INFO_ITEM(312, R8A7795_CLK_SD2),
+	RENESAS_MOD_CLK_INFO_ITEM(313, R8A7795_CLK_SD1),
+	RENESAS_MOD_CLK_INFO_ITEM(314, R8A7795_CLK_SD0),
 };
 
 static int r8a7795_cpg_enable_disable_core(const struct device *dev,
@@ -108,13 +108,13 @@ static int r8a7795_cpg_enable_disable_core(const struct device *dev,
 	}
 
 	if (!ret) {
-		rcar_cpg_write(DEVICE_MMIO_GET(dev), clk_info->offset, reg);
+		rcar_cpg_write(reg, DEVICE_MMIO_GET(dev) + clk_info->offset);
 	}
 	return ret;
 }
 
 static int r8a7795_cpg_core_clock_endisable(const struct device *dev,
-					    struct rcar_cpg_clk *clk,
+					    struct renesas_cpg_clk *clk,
 					    bool enable)
 {
 	struct cpg_clk_info_table *clk_info;
@@ -122,7 +122,7 @@ static int r8a7795_cpg_core_clock_endisable(const struct device *dev,
 	k_spinlock_key_t key;
 	int ret = 0;
 
-	clk_info = rcar_cpg_find_clk_info_by_module_id(dev, clk->domain, clk->module);
+	clk_info = renesas_cpg_find_clk_info_by_module_id(dev, clk->domain, clk->module);
 	if (!clk_info) {
 		return -EINVAL;
 	}
@@ -131,7 +131,7 @@ static int r8a7795_cpg_core_clock_endisable(const struct device *dev,
 		if (clk->rate > 0) {
 			uintptr_t rate = clk->rate;
 
-			ret = rcar_cpg_set_rate(dev, (clock_control_subsys_t)clk,
+			ret = renesas_cpg_set_rate(dev, (clock_control_subsys_t)clk,
 						   (clock_control_subsys_rate_t)rate);
 			if (ret < 0) {
 				return ret;
@@ -150,7 +150,7 @@ static int r8a7795_cpg_mssr_start_stop(const struct device *dev,
 				       clock_control_subsys_t sys,
 				       bool enable)
 {
-	struct rcar_cpg_clk *clk = (struct rcar_cpg_clk *)sys;
+	struct renesas_cpg_clk *clk = (struct renesas_cpg_clk *)sys;
 	int ret = -EINVAL;
 
 	if (!dev || !sys) {
@@ -173,7 +173,7 @@ static int r8a7795_cpg_mssr_start_stop(const struct device *dev,
 
 static uint32_t r8a7795_get_div_helper(uint32_t reg_val, uint32_t module)
 {
-	uint32_t divider = RCAR_CPG_NONE;
+	uint32_t divider = RENESAS_CPG_NONE;
 
 	switch (module) {
 	case R8A7795_CLK_SD0H:
@@ -274,16 +274,16 @@ static int r8a7795_cpg_mssr_init(const struct device *dev)
 {
 	DEVICE_MMIO_MAP(dev, K_MEM_CACHE_NONE);
 
-	rcar_cpg_build_clock_relationship(dev);
-	rcar_cpg_update_all_in_out_freq(dev);
+	renesas_cpg_build_clock_relationship(dev);
+	renesas_cpg_update_all_in_out_freq(dev);
 	return 0;
 }
 
 static const struct clock_control_driver_api r8a7795_cpg_mssr_api = {
 	.on = r8a7795_cpg_mssr_start,
 	.off = r8a7795_cpg_mssr_stop,
-	.get_rate = rcar_cpg_get_rate,
-	.set_rate = rcar_cpg_set_rate,
+	.get_rate = renesas_cpg_get_rate,
+	.set_rate = renesas_cpg_set_rate,
 };
 
 #define R8A7795_MSSR_INIT(inst)							  \

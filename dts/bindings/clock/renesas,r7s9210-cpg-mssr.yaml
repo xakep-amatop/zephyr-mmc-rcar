@@ -1,0 +1,12 @@
+# Copyright (c) 2023 EPAM Systems
+# SPDX-License-Identifier: Apache-2.0
+
+description: Renesas R7S9210 SoC Clock Pulse Generator/Module Standby and Software Reset
+
+compatible: "renesas,r7s9210-cpg-mssr"
+
+include: renesas,rcar-cpg-mssr.yaml
+
+properties:
+  clocks:
+    required: true

@@ -19,8 +19,8 @@
 struct uart_rcar_cfg {
 	DEVICE_MMIO_ROM; /* Must be first */
 	const struct device *clock_dev;
-	struct rcar_cpg_clk mod_clk;
-	struct rcar_cpg_clk bus_clk;
+	struct renesas_cpg_clk mod_clk;
+	struct renesas_cpg_clk bus_clk;
 	const struct pinctrl_dev_config *pcfg;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	void (*irq_config_func)(const struct device *dev);

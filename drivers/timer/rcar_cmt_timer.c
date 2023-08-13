@@ -26,7 +26,7 @@
 #if defined(CONFIG_TEST)
 const int32_t z_sys_timer_irq_for_test = DT_IRQN(DT_INST(0, renesas_rcar_cmt));
 #endif
-static struct rcar_cpg_clk mod_clk = {
+static struct renesas_cpg_clk mod_clk = {
 	.module = DT_INST_CLOCKS_CELL(0, module),
 	.domain = DT_INST_CLOCKS_CELL(0, domain),
 };

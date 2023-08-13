@@ -26,7 +26,7 @@ struct i2c_rcar_cfg {
 	uint32_t reg_addr;
 	init_func_t init_func;
 	const struct device *clock_dev;
-	struct rcar_cpg_clk mod_clk;
+	struct renesas_cpg_clk mod_clk;
 	uint32_t bitrate;
 };
 

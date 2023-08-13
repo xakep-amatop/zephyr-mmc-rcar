@@ -31,7 +31,7 @@ struct cpg_clk_info_table {
 	struct cpg_clk_info_table *next_sibling;
 };
 
-struct rcar_cpg_mssr_data {
+struct renesas_cpg_mssr_data {
 	DEVICE_MMIO_RAM; /* Must be first */
 
 	struct cpg_clk_info_table *clk_info_table[CPG_NUM_DOMAINS];
@@ -40,35 +40,36 @@ struct rcar_cpg_mssr_data {
 	struct k_spinlock lock;
 
 	uint32_t (*get_div_helper)(uint32_t reg, uint32_t module);
+	uint32_t (*get_mul_helper)(uint32_t reg, uint32_t module);
 	int (*set_rate_helper)(uint32_t module, uint32_t *div, uint32_t *div_mask);
 };
 
-#define RCAR_CPG_NONE -1
-#define RCAR_CPG_KHZ(khz) ((khz) * 1000U)
-#define RCAR_CPG_MHZ(mhz) (RCAR_CPG_KHZ(mhz) * 1000U)
+#define RENESAS_CPG_NONE -1
+#define RENESAS_CPG_KHZ(khz) ((khz) * 1000U)
+#define RENESAS_CPG_MHZ(mhz) (RENESAS_CPG_KHZ(mhz) * 1000U)
 
-#define RCAR_CORE_CLK_INFO_ITEM(id, off, par_id, in_frq)	\
+#define RENESAS_CORE_CLK_INFO_ITEM(id, off, par_id, in_frq)	\
 	{							\
 		.domain		= CPG_CORE,			\
 		.module		= id,				\
 		.offset		= off,				\
 		.parent_id	= par_id,			\
 		.in_freq	= in_frq,			\
-		.out_freq	= RCAR_CPG_NONE,		\
+		.out_freq	= RENESAS_CPG_NONE,		\
 		.status		= CLOCK_CONTROL_STATUS_UNKNOWN,	\
 		.parent		= NULL,				\
 		.children_list	= NULL,				\
 		.next_sibling	= NULL,				\
 	}
 
-#define RCAR_MOD_CLK_INFO_ITEM(id, par_id)			\
+#define RENESAS_MOD_CLK_INFO_ITEM(id, par_id)			\
 	{							\
 		.domain		= CPG_MOD,			\
 		.module		= id,				\
-		.offset		= RCAR_CPG_NONE,		\
+		.offset		= RENESAS_CPG_NONE,		\
 		.parent_id	= par_id,			\
-		.in_freq	= RCAR_CPG_NONE,		\
-		.out_freq	= RCAR_CPG_NONE,		\
+		.in_freq	= RENESAS_CPG_NONE,		\
+		.out_freq	= RENESAS_CPG_NONE,		\
 		.status		= CLOCK_CONTROL_STATUS_UNKNOWN,	\
 		.parent		= NULL,				\
 		.children_list	= NULL,				\
@@ -109,23 +110,21 @@ static const uint16_t srcr[] = {
 /* Peripherals Clocks */
 #define S3D4_CLK_RATE             66600000	/* SCIF	*/
 #define S0D12_CLK_RATE            66600000	/* PWM	*/
-#endif /* CONFIG_SOC_SERIES_RCAR_GEN3 */
-
-void rcar_cpg_write(uint32_t base_address, uint32_t reg, uint32_t val);
+#endif
 
 int rcar_cpg_mstp_clock_endisable(uint32_t base_address, uint32_t module, bool enable);
 
-struct cpg_clk_info_table *rcar_cpg_find_clk_info_by_module_id(const struct device *dev,
-							       uint32_t domain,
-							       uint32_t id);
+struct cpg_clk_info_table *renesas_cpg_find_clk_info_by_module_id(const struct device *dev,
+								  uint32_t domain,
+								  uint32_t id);
 
-void rcar_cpg_build_clock_relationship(const struct device *dev);
+void renesas_cpg_build_clock_relationship(const struct device *dev);
 
-void rcar_cpg_update_all_in_out_freq(const struct device *dev);
+void renesas_cpg_update_all_in_out_freq(const struct device *dev);
 
-int rcar_cpg_get_rate(const struct device *dev, clock_control_subsys_t sys, uint32_t *rate);
+int renesas_cpg_get_rate(const struct device *dev, clock_control_subsys_t sys, uint32_t *rate);
 
-int rcar_cpg_set_rate(const struct device *dev, clock_control_subsys_t sys,
-		      clock_control_subsys_rate_t rate);
+int renesas_cpg_set_rate(const struct device *dev, clock_control_subsys_t sys,
+			 clock_control_subsys_rate_t rate);
 
 #endif /* ZEPHYR_DRIVERS_RENESAS_RENESAS_CPG_MSSR_H_ */

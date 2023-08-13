@@ -170,8 +170,8 @@ struct can_rcar_cfg {
 	int reg_size;
 	init_func_t init_func;
 	const struct device *clock_dev;
-	struct rcar_cpg_clk mod_clk;
-	struct rcar_cpg_clk bus_clk;
+	struct renesas_cpg_clk mod_clk;
+	struct renesas_cpg_clk bus_clk;
 	uint32_t bus_speed;
 	uint8_t sjw;
 	uint8_t prop_seg;

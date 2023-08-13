@@ -3,7 +3,7 @@
 # Copyright (c) 2023 EPAM Systems
 # SPDX-License-Identifier: Apache-2.0
 
-if SOC_SERIES_RZ_A2M
+if SOC_SERIES_RZ_A
 
 config SOC_SERIES
 	default "a2m"
@@ -14,4 +14,4 @@ config NUM_IRQS
 config PINCTRL
 	# default y
 
-endif # SOC_SERIES_RZ_A2M
+endif # SOC_SERIES_RZ_A

@@ -58,7 +58,7 @@ source "drivers/clock_control/Kconfig.esp32"
 
 source "drivers/clock_control/Kconfig.litex"
 
-source "drivers/clock_control/Kconfig.rcar"
+source "drivers/clock_control/Kconfig.renesas"
 
 source "drivers/clock_control/Kconfig.xec"
 

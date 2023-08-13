@@ -12,7 +12,7 @@
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/dt-bindings/clock/renesas_cpg_mssr.h>
 
-struct rcar_cpg_clk {
+struct renesas_cpg_clk {
 	uint32_t domain;
 	uint32_t module;
 	uint32_t rate;

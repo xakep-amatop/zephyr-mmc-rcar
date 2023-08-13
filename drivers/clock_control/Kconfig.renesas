@@ -1,0 +1,56 @@
+# Copyright (c) 2021-2022 IoT.bzh
+# SPDX-License-Identifier: Apache-2.0
+
+config CLOCK_CONTROL_RENESAS_CPG_MSSR
+	bool "RCar CPG MSSR driver"
+	depends on DT_HAS_RENESAS_R8A7795_CPG_MSSR_ENABLED || DT_HAS_RENESAS_R7S9210_CPG_MSSR_ENABLED
+	help
+	  Enable support for Renesas RCar CPG MSSR driver.
+
+if SOC_SERIES_RZ_A
+if DT_HAS_RENESAS_R7S9210_CPG_MSSR_ENABLED
+
+config RZ_A_CLOCK_CONTROL_SELECT_CKIO
+	int
+	default 1
+	range 0 1
+	help
+	  CKIO Output Clock Select
+		0: B Clock output
+		1: P1 Clock output
+
+config RZ_A_CLOCK_CONTROL_SELECT_OCTA_MEMORY
+	int
+	default 0
+	range 0 3
+	help
+	  Octa memory controller Clock Select
+		0: P0 Clock output
+		1: P1 Clock output
+		2: B Clock output
+		3: G Clock output
+
+config RZ_A_CLOCK_CONTROL_SELECT_HYPER_BUS
+	int
+	default 0
+	range 0 3
+	help
+	  HyperBus controller Clock Select
+		0: P0 Clock output
+		1: P1 Clock output
+		2: B Clock output
+		3: G Clock output
+
+config RZ_A_CLOCK_CONTROL_SELECT_SPI_MULTI_IO_BUS
+	int
+	default 0
+	range 0 3
+	help
+	  SPI multi I/O bus controller Clock Select
+		0: P0 Clock output
+		1: P1 Clock output
+		2: B Clock output
+		3: G Clock output
+
+endif # DT_HAS_RENESAS_R7S9210_CPG_MSSR_ENABLED
+endif # SOC_SERIES_RZ_A

@@ -6,6 +6,7 @@
 
 /dts-v1/;
 #include <arm/renesas/rz/r7s9210.dtsi>
+#include <freq.h>
 #if PFC_NOT_YET
 #include "rz_a2m_pinctrl.dtsi"
 #endif
@@ -38,4 +39,8 @@
 		status = "okay";
 	};
 #endif
+};
+
+&extal_clk {
+	clock-frequency = <DT_FREQ_M(24)>;
 };

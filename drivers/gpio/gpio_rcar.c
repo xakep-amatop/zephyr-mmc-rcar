@@ -30,7 +30,7 @@ struct gpio_rcar_cfg {
 	DEVICE_MMIO_NAMED_ROM(reg_base);
 	init_func_t init_func;
 	const struct device *clock_dev;
-	struct rcar_cpg_clk mod_clk;
+	struct renesas_cpg_clk mod_clk;
 };
 
 struct gpio_rcar_data {

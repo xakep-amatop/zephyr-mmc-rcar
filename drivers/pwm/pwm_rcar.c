@@ -53,8 +53,8 @@ LOG_MODULE_REGISTER(pwm_rcar);
 struct pwm_rcar_cfg {
 	uint32_t reg_addr;
 	const struct device *clock_dev;
-	struct rcar_cpg_clk core_clk;
-	struct rcar_cpg_clk mod_clk;
+	struct renesas_cpg_clk core_clk;
+	struct renesas_cpg_clk mod_clk;
 	const struct pinctrl_dev_config *pcfg;
 };
 

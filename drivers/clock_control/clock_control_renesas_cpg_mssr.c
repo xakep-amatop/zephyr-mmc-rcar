@@ -14,7 +14,9 @@
 
 #define LOG_LEVEL CONFIG_CLOCK_CONTROL_LOG_LEVEL
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(clock_control_rcar);
+LOG_MODULE_REGISTER(clock_control_renesas);
+
+#if defined(CONFIG_SOC_SERIES_RCAR_GEN3)
 
 static void rcar_cpg_reset(uint32_t base_address, uint32_t reg, uint32_t bit)
 {
@@ -22,12 +24,12 @@ static void rcar_cpg_reset(uint32_t base_address, uint32_t reg, uint32_t bit)
 	rcar_cpg_write(base_address, SRSTCLR(reg), BIT(bit));
 }
 
-void rcar_cpg_write(uint32_t base_address, uint32_t reg, uint32_t val)
+static void rcar_cpg_write(uint32_t base_address, uint32_t reg, uint32_t val)
 {
 	sys_write32(~val, base_address + CPGWPR);
 	sys_write32(val, base_address + reg);
 	/* Wait for at least one cycle of the RCLK clock (@ ca. 32 kHz) */
-	k_sleep(K_USEC(35));
+	k_busy_wait(35);
 }
 
 int rcar_cpg_mstp_clock_endisable(uint32_t base_address, uint32_t module, bool enable)
@@ -54,6 +56,7 @@ int rcar_cpg_mstp_clock_endisable(uint32_t base_address, uint32_t module, bool e
 
 	return 0;
 }
+#endif
 
 static int cmp_cpg_clk_info_table_items(const void *key, const void *element)
 {
@@ -70,9 +73,9 @@ static int cmp_cpg_clk_info_table_items(const void *key, const void *element)
 }
 
 struct cpg_clk_info_table *
-rcar_cpg_find_clk_info_by_module_id(const struct device *dev, uint32_t domain, uint32_t id)
+renesas_cpg_find_clk_info_by_module_id(const struct device *dev, uint32_t domain, uint32_t id)
 {
-	struct rcar_cpg_mssr_data *data = dev->data;
+	struct renesas_cpg_mssr_data *data = dev->data;
 	struct cpg_clk_info_table *item;
 	struct cpg_clk_info_table *table = data->clk_info_table[domain];
 	uint32_t table_size = data->clk_info_table_size[domain];
@@ -87,50 +90,67 @@ rcar_cpg_find_clk_info_by_module_id(const struct device *dev, uint32_t domain, u
 	return item;
 }
 
-static uint32_t rcar_cpg_get_divider(const struct device *dev, struct cpg_clk_info_table *clk_info)
+static void renesas_cpg_get_div_and_mul(const struct device *dev,
+					 struct cpg_clk_info_table *clk_info,
+					 uint32_t *divider,
+					 uint32_t *multiplier)
 {
 	mem_addr_t reg_addr;
 	mm_reg_t reg_val;
-	uint32_t divider = RCAR_CPG_NONE;
-	struct rcar_cpg_mssr_data *data = dev->data;
+	struct renesas_cpg_mssr_data *data = dev->data;
 
+	*divider = RENESAS_CPG_NONE;
 	if (clk_info->domain == CPG_MOD) {
-		return 1;
+		*divider = 1;
+		return;
 	}
 
 	reg_addr = clk_info->offset;
-	if (reg_addr == RCAR_CPG_NONE) {
+	if (reg_addr == RENESAS_CPG_NONE) {
 		/* if we don't have valid offset, in is equal to out */
-		return 1;
+		*divider = 1;
+		return;
 	}
 
 	reg_addr += DEVICE_MMIO_GET(dev);
+#if defined(CONFIG_SOC_SERIES_RCAR_GEN3)
 	reg_val = sys_read32(reg_addr);
+#elif defined(CONFIG_SOC_SERIES_RZ_A)
+	reg_val = sys_read16(reg_addr);
+#else
+#error "Platform isnt supported by CPG driver"
+#endif
 
 	if (data->get_div_helper) {
-		divider = data->get_div_helper(reg_val, clk_info->module);
+		*divider = data->get_div_helper(reg_val, clk_info->module);
 	}
 
-	if (!divider) {
-		return RCAR_CPG_NONE;
+	if (data->get_mul_helper) {
+		*multiplier = data->get_mul_helper(reg_val, clk_info->module);
+	} else {
+		*multiplier = 1;
 	}
 
-	return divider;
+	if (!*divider) {
+		*divider = RENESAS_CPG_NONE;
+	}
 }
 
-static int rcar_cpg_update_out_freq(const struct device *dev, struct cpg_clk_info_table *clk_info)
+static int renesas_cpg_update_out_freq(const struct device *dev, struct cpg_clk_info_table *clk_info)
 {
-	uint32_t divider = rcar_cpg_get_divider(dev, clk_info);
+	uint32_t divider, multiplier = 1;
 
-	if (divider == RCAR_CPG_NONE) {
+	renesas_cpg_get_div_and_mul(dev, clk_info, &divider, &multiplier);
+	if (divider == RENESAS_CPG_NONE) {
 		return -EINVAL;
 	}
 
-	clk_info->out_freq = clk_info->in_freq / divider;
+	clk_info->out_freq = clk_info->in_freq * multiplier;
+	clk_info->out_freq /= divider;
 	return 0;
 }
 
-static int64_t rcar_cpg_get_in_update_out_freq(const struct device *dev,
+static int64_t renesas_cpg_get_in_update_out_freq(const struct device *dev,
 					   struct cpg_clk_info_table *clk_info)
 {
 	int64_t freq = -ENOTSUP;
@@ -140,9 +160,9 @@ static int64_t rcar_cpg_get_in_update_out_freq(const struct device *dev,
 		return freq;
 	}
 
-	if (clk_info->in_freq != RCAR_CPG_NONE) {
-		if (clk_info->out_freq == RCAR_CPG_NONE) {
-			if (rcar_cpg_update_out_freq(dev, clk_info) < 0) {
+	if (clk_info->in_freq != RENESAS_CPG_NONE) {
+		if (clk_info->out_freq == RENESAS_CPG_NONE) {
+			if (renesas_cpg_update_out_freq(dev, clk_info) < 0) {
 				return freq;
 			}
 		}
@@ -151,14 +171,14 @@ static int64_t rcar_cpg_get_in_update_out_freq(const struct device *dev,
 
 	parent_clk = clk_info->parent;
 
-	freq = rcar_cpg_get_in_update_out_freq(dev, parent_clk);
+	freq = renesas_cpg_get_in_update_out_freq(dev, parent_clk);
 	if (freq < 0) {
 		return freq;
 	}
 
 	clk_info->in_freq = parent_clk->out_freq;
 
-	freq = rcar_cpg_update_out_freq(dev, clk_info);
+	freq = renesas_cpg_update_out_freq(dev, clk_info);
 	if (freq < 0) {
 		return freq;
 	}
@@ -166,15 +186,15 @@ static int64_t rcar_cpg_get_in_update_out_freq(const struct device *dev,
 	return clk_info->in_freq;
 }
 
-static int64_t rcar_cpg_get_out_freq(const struct device *dev, struct cpg_clk_info_table *clk_info)
+static int64_t renesas_cpg_get_out_freq(const struct device *dev, struct cpg_clk_info_table *clk_info)
 {
 	int64_t freq;
 
-	if (clk_info->out_freq != RCAR_CPG_NONE) {
+	if (clk_info->out_freq != RENESAS_CPG_NONE) {
 		return clk_info->out_freq;
 	}
 
-	freq = rcar_cpg_get_in_update_out_freq(dev, clk_info);
+	freq = renesas_cpg_get_in_update_out_freq(dev, clk_info);
 	if (freq < 0) {
 		return freq;
 	}
@@ -182,7 +202,7 @@ static int64_t rcar_cpg_get_out_freq(const struct device *dev, struct cpg_clk_in
 	return clk_info->out_freq;
 }
 
-static void rcar_cpg_change_children_in_out_freq(const struct device *dev,
+static void renesas_cpg_change_children_in_out_freq(const struct device *dev,
 						 struct cpg_clk_info_table *parent)
 {
 	struct cpg_clk_info_table *children_list = parent->children_list;
@@ -190,7 +210,7 @@ static void rcar_cpg_change_children_in_out_freq(const struct device *dev,
 	while (children_list) {
 		children_list->in_freq = parent->out_freq;
 
-		if (rcar_cpg_update_out_freq(dev, children_list) < 0) {
+		if (renesas_cpg_update_out_freq(dev, children_list) < 0) {
 			/*
 			 * Why it can happen:
 			 * - divider is zero (with current implementation of board specific
@@ -210,16 +230,16 @@ static void rcar_cpg_change_children_in_out_freq(const struct device *dev,
 		}
 
 		/* child can have childrens */
-		rcar_cpg_change_children_in_out_freq(dev, children_list);
+		renesas_cpg_change_children_in_out_freq(dev, children_list);
 		children_list = children_list->next_sibling;
 	}
 }
 
-int rcar_cpg_get_rate(const struct device *dev, clock_control_subsys_t sys, uint32_t *rate)
+int renesas_cpg_get_rate(const struct device *dev, clock_control_subsys_t sys, uint32_t *rate)
 {
 	int64_t ret;
-	struct rcar_cpg_mssr_data *data;
-	struct rcar_cpg_clk *clk = (struct rcar_cpg_clk *)sys;
+	struct renesas_cpg_mssr_data *data;
+	struct renesas_cpg_clk *clk = (struct renesas_cpg_clk *)sys;
 	k_spinlock_key_t key;
 
 	struct cpg_clk_info_table *clk_info;
@@ -230,7 +250,7 @@ int rcar_cpg_get_rate(const struct device *dev, clock_control_subsys_t sys, uint
 		return -EINVAL;
 	}
 
-	clk_info = rcar_cpg_find_clk_info_by_module_id(dev, clk->domain, clk->module);
+	clk_info = renesas_cpg_find_clk_info_by_module_id(dev, clk->domain, clk->module);
 	if (clk_info == NULL) {
 		return -EINVAL;
 	}
@@ -238,7 +258,7 @@ int rcar_cpg_get_rate(const struct device *dev, clock_control_subsys_t sys, uint
 	data = dev->data;
 
 	key = k_spin_lock(&data->lock);
-	ret = rcar_cpg_get_out_freq(dev, clk_info);
+	ret = renesas_cpg_get_out_freq(dev, clk_info);
 	k_spin_unlock(&data->lock, key);
 
 	if (ret < 0) {
@@ -255,14 +275,14 @@ int rcar_cpg_get_rate(const struct device *dev, clock_control_subsys_t sys, uint
 	return 0;
 }
 
-int rcar_cpg_set_rate(const struct device *dev, clock_control_subsys_t sys,
+int renesas_cpg_set_rate(const struct device *dev, clock_control_subsys_t sys,
 		      clock_control_subsys_rate_t rate)
 {
 	int ret = -ENOTSUP;
 	k_spinlock_key_t key;
 	struct cpg_clk_info_table *clk_info;
-	struct rcar_cpg_clk *clk = (struct rcar_cpg_clk *)sys;
-	struct rcar_cpg_mssr_data *data;
+	struct renesas_cpg_clk *clk = (struct renesas_cpg_clk *)sys;
+	struct renesas_cpg_mssr_data *data;
 	int64_t in_freq;
 	uint32_t divider;
 	uint32_t div_mask;
@@ -275,7 +295,7 @@ int rcar_cpg_set_rate(const struct device *dev, clock_control_subsys_t sys,
 		return -EINVAL;
 	}
 
-	clk_info = rcar_cpg_find_clk_info_by_module_id(dev, clk->domain, clk->module);
+	clk_info = renesas_cpg_find_clk_info_by_module_id(dev, clk->domain, clk->module);
 	if (clk_info == NULL) {
 		return -EINVAL;
 	}
@@ -293,7 +313,7 @@ int rcar_cpg_set_rate(const struct device *dev, clock_control_subsys_t sys,
 	data = dev->data;
 
 	key = k_spin_lock(&data->lock);
-	in_freq = rcar_cpg_get_in_update_out_freq(dev, clk_info);
+	in_freq = renesas_cpg_get_in_update_out_freq(dev, clk_info);
 	if (in_freq < 0) {
 		ret = in_freq;
 		goto unlock;
@@ -313,14 +333,22 @@ int rcar_cpg_set_rate(const struct device *dev, clock_control_subsys_t sys,
 	ret = data->set_rate_helper(module, &divider, &div_mask);
 	if (!ret) {
 		int64_t out_rate;
+#if defined(CONFIG_SOC_SERIES_RCAR_GEN3)
 		uint32_t reg = sys_read32(clk_info->offset + DEVICE_MMIO_GET(dev));
 
 		reg &= ~div_mask;
 		rcar_cpg_write(DEVICE_MMIO_GET(dev), clk_info->offset, reg | divider);
+#elif defined(CONFIG_SOC_SERIES_RZ_A)
+		uint16_t reg = sys_read16(clk_info->offset + DEVICE_MMIO_GET(dev));
 
-		clk_info->out_freq = RCAR_CPG_NONE;
+		reg &= ~div_mask;
+		sys_write16(reg | divider, DEVICE_MMIO_GET(dev) + clk_info->offset);
+#else
+#error "Platform isnt supported by CPG driver"
+#endif
+		clk_info->out_freq = RENESAS_CPG_NONE;
 
-		out_rate = rcar_cpg_get_out_freq(dev, clk_info);
+		out_rate = renesas_cpg_get_out_freq(dev, clk_info);
 		if (out_rate < 0 || out_rate != u_rate) {
 			ret = -EINVAL;
 			LOG_ERR("%s: clock (domain %u module %u) register cfg freq (%lld) "
@@ -329,7 +357,7 @@ int rcar_cpg_set_rate(const struct device *dev, clock_control_subsys_t sys,
 			goto unlock;
 		}
 
-		rcar_cpg_change_children_in_out_freq(dev, clk_info);
+		renesas_cpg_change_children_in_out_freq(dev, clk_info);
 	}
 
 unlock:
@@ -337,11 +365,11 @@ unlock:
 	return ret;
 }
 
-void rcar_cpg_build_clock_relationship(const struct device *dev)
+void renesas_cpg_build_clock_relationship(const struct device *dev)
 {
 	uint32_t domain;
 	k_spinlock_key_t key;
-	struct rcar_cpg_mssr_data *data = dev->data;
+	struct renesas_cpg_mssr_data *data = dev->data;
 
 	if (!data) {
 		return;
@@ -367,11 +395,11 @@ void rcar_cpg_build_clock_relationship(const struct device *dev)
 
 			prev_mod_id = item->module;
 
-			if (item->parent_id == RCAR_CPG_NONE) {
+			if (item->parent_id == RENESAS_CPG_NONE) {
 				continue;
 			}
 
-			parent = rcar_cpg_find_clk_info_by_module_id(dev, CPG_CORE,
+			parent = renesas_cpg_find_clk_info_by_module_id(dev, CPG_CORE,
 								     item->parent_id);
 			if (!parent) {
 				LOG_ERR("%s: can't find parent for clock with valid parent id, "
@@ -397,11 +425,11 @@ void rcar_cpg_build_clock_relationship(const struct device *dev)
 	k_spin_unlock(&data->lock, key);
 }
 
-void rcar_cpg_update_all_in_out_freq(const struct device *dev)
+void renesas_cpg_update_all_in_out_freq(const struct device *dev)
 {
 	uint32_t domain;
 	k_spinlock_key_t key;
-	struct rcar_cpg_mssr_data *data = dev->data;
+	struct renesas_cpg_mssr_data *data = dev->data;
 
 	if (!data) {
 		return;
@@ -413,7 +441,7 @@ void rcar_cpg_update_all_in_out_freq(const struct device *dev)
 		struct cpg_clk_info_table *item = data->clk_info_table[domain];
 
 		for (idx = 0; idx < data->clk_info_table_size[domain]; idx++, item++) {
-			if (rcar_cpg_get_in_update_out_freq(dev, item) < 0) {
+			if (renesas_cpg_get_in_update_out_freq(dev, item) < 0) {
 				LOG_ERR("%s: can't update in/out freq for clock during init, "
 					"domain %u module %u! Please, review correctness of data "
 					"inside clk_info_table",
