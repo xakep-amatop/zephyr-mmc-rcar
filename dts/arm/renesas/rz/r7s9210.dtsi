@@ -58,14 +58,28 @@
 			clocks = <&extal_clk>;
 		};
 
-		arch_timer: timer@0 {
-			compatible = "arm,armv8-timer";
-			status = "okay";
-			interrupts = <GIC_PPI 0 IRQ_TYPE_EDGE IRQ_DEFAULT_PRIORITY>,
-				     <GIC_PPI 1 IRQ_TYPE_EDGE IRQ_DEFAULT_PRIORITY>,
-				     <GIC_PPI 2 IRQ_TYPE_EDGE IRQ_DEFAULT_PRIORITY>,
-				     <GIC_PPI 3 IRQ_TYPE_EDGE IRQ_DEFAULT_PRIORITY>;
-			reg = <0x0 0x10>;
+		ostm0: timer@e803b000 {
+			compatible = "renesas,ostm";
+			reg = <0xe803b000 0x30>;
+			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL IRQ_DEFAULT_PRIORITY>;
+			clocks = <&cpg CPG_MOD 36>;
+			status = "disabled";
+		};
+
+		ostm1: timer@e803c000 {
+			compatible = "renesas,ostm";
+			reg = <0xe803c000 0x30>;
+			interrupts = <GIC_SPI 57 IRQ_TYPE_EDGE IRQ_DEFAULT_PRIORITY>;
+			clocks = <&cpg CPG_MOD 35>;
+			status = "disabled";
+		};
+
+		ostm2: timer@e803d000 {
+			compatible = "renesas,ostm";
+			reg = <0xe803d000 0x30>;
+			interrupts = <GIC_SPI 58 IRQ_TYPE_EDGE IRQ_DEFAULT_PRIORITY>;
+			clocks = <&cpg CPG_MOD 34>;
+			status = "disabled";
 		};
 
 #if PFC_NOT_YET

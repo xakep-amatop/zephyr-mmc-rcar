@@ -1,0 +1,13 @@
+# Copyright (c) 2023 EPAM Systems
+# SPDX-License-Identifier: Apache-2.0
+
+config RZ_OS_TIMER
+	bool "Renesas RZ OS timer"
+	default y
+	depends on DT_HAS_RENESAS_OSTM_ENABLED
+	select TIMER_READS_ITS_FREQUENCY_AT_RUNTIME
+	select SYSTEM_TIMER_HAS_DISABLE_SUPPORT
+	select TICKLESS_CAPABLE
+	help
+	  This module implements a kernel device driver for the Renesas RZ
+	  platform provides the standard "system clock driver" interfaces.

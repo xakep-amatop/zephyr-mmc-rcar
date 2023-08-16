@@ -1,0 +1,15 @@
+description: Renesas OS timer
+
+compatible: "renesas,ostm"
+
+include: base.yaml
+
+properties:
+  reg:
+    required: true
+
+  clocks:
+    required: true
+
+  interrupts:
+    required: true

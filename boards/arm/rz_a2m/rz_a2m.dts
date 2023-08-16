@@ -44,3 +44,7 @@
 &extal_clk {
 	clock-frequency = <DT_FREQ_M(24)>;
 };
+
+&ostm0 {
+	status = "okay";
+};
