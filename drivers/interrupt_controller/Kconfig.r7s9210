@@ -1,0 +1,24 @@
+# Copyright (c) 2023 EPAM Systems
+# SPDX-License-Identifier: Apache-2.0
+
+config INTC_R7S9210
+	bool "Renesas r7s9210 interrupt controller support"
+	default y
+	depends on DT_HAS_RENESAS_R7S9210_INTC_ENABLED
+	depends on MULTI_LEVEL_INTERRUPTS
+	select ARM_CUSTOM_INTERRUPT_CONTROLLER
+	help
+	  Select this option to enable support for the Renesas r7s9210 interrupt
+	  controller driver. This provides a level 2 interrupt controller for
+	  the SoC. The INTMUX peripheral combines level 2 interrupts into eight
+	  channels; each channel has its own level 1 interrupt to the core.
+
+if INTC_R7S9210
+
+config INTC_R7S9210_INIT_PRIORITY
+	int "r7s9210 intc driver initialization priority"
+	default 40
+	help
+	  Boot time initialization priority for r7s9210 intc driver.
+
+endif # INTC_R7S9210

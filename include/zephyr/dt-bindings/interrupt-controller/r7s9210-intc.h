@@ -1,0 +1,23 @@
+/*
+ * Copyright (c) 2023 EPAM Systems
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#ifndef ZEPHYR_INCLUDE_DT_BINDINGS_INTERRUPT_CONTROLLER_R7S9210_INTC_H_
+#define ZEPHYR_INCLUDE_DT_BINDINGS_INTERRUPT_CONTROLLER_R7S9210_INTC_H_
+
+#define R7S9210_IRQ0            0
+#define R7S9210_IRQ1            1
+#define R7S9210_IRQ2            2
+#define R7S9210_IRQ3            3
+#define R7S9210_IRQ4            4
+#define R7S9210_IRQ5            5
+#define R7S9210_IRQ6            6
+#define R7S9210_IRQ7            7
+
+#define IRQ_TYPE_LOW_LEVEL      0
+#define IRQ_TYPE_EDGE_FALLING   1
+#define IRQ_TYPE_EDGE_RISING    2
+#define IRQ_TYPE_EDGE_BOTH      (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING)
+
+#endif /* ZEPHYR_INCLUDE_DT_BINDINGS_INTERRUPT_CONTROLLER_R7S9210_INTC_H_ */

@@ -8,7 +8,27 @@ if SOC_SERIES_RZ_A
 config SOC_SERIES
 	default "rz_a"
 
-config NUM_IRQS
+if MULTI_LEVEL_INTERRUPTS
+
+config MAX_IRQ_PER_AGGREGATOR
+	default 8
+
+config 2ND_LEVEL_INTERRUPTS
+	default y
+
+config 2ND_LVL_ISR_TBL_OFFSET
 	default 512
 
+config 2ND_LVL_INTR_00_OFFSET
+	default 4
+
+config NUM_2ND_LEVEL_AGGREGATORS
+	default 1
+
+endif # MULTI_LEVEL_INTERRUPTS
+
 endif # SOC_SERIES_RZ_A
+
+config NUM_IRQS
+	default 520 if 2ND_LEVEL_INTERRUPTS
+	default 512 if !2ND_LEVEL_INTERRUPTS

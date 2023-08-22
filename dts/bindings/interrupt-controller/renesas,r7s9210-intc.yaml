@@ -1,0 +1,26 @@
+# Copyright (c) 2023 EPAM Systems
+# SPDX-License-Identifier: Apache-2.0
+
+description: Renesas r7s9210 interrupt controller
+
+compatible: "renesas,r7s9210-intc"
+
+include: [interrupt-controller.yaml, base.yaml]
+
+properties:
+  reg:
+    required: true
+
+  map:
+    type: array
+    required: true
+
+  "#address-cells":
+    const: 0
+
+  "#interrupt-cells":
+    const: 2
+
+interrupt-cells:
+  - irq
+  - flags
