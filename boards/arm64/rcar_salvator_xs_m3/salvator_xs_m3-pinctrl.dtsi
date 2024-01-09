@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/dt-bindings/pinctrl/renesas/pinctrl-r8a77961.h>
+#include <zephyr/dt-bindings/pinctrl/renesas/pinctrl-r8a77951.h>
 
 &pfc {
 	scif2_data_a_tx_default: scif2_data_a_tx_default {
