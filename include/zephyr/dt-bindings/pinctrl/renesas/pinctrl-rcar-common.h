@@ -25,6 +25,9 @@
 /* Arbitrary number to encode non capable gpio pin */
 #define PIN_NOGPSR_START 1024U
 
+/* some of pins can have no function bits, but have to be defined as peripheral */
+#define FUNC_DUMMY 0xf
+
 /**
  * @brief Utility macro to encode a GPIO capable pin
  *
