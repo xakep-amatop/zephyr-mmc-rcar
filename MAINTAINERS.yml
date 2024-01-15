@@ -3272,6 +3272,7 @@ Renesas SmartBond Platforms:
     - dts/arm/renesas/smartbond/
     - dts/bindings/*/renesas,smartbond*
     - soc/arm/renesas_smartbond/
+    - drivers/pinctrl/renesas/*smartbond*
   labels:
     - "platform: Renesas SmartBond"
   description: >-
@@ -3284,6 +3285,8 @@ Renesas Platforms:
     - soc/arm/renesas_ra/
     - dts/arm/renesas/ra/
     - soc/arm/renesas_rzt2m/
+    - drivers/pinctrl/renesas/*ra*
+    - drivers/pinctrl/renesas/*rzt2m*
   labels:
     - "platforms: Renesas"
 
@@ -3299,6 +3302,8 @@ Renesas R-Car Platforms:
     - boards/arm/rcar_*/
     - boards/arm64/rcar_*/
     - drivers/*/*rcar*
+    - drivers/pinctrl/renesas/*rcar*
+    - drivers/pinctrl/renesas/pfc_*
     - drivers/clock_control/*cpg_mssr*
     - dts/arm/renesas/rcar/
     - dts/arm64/renesas/
