@@ -8,6 +8,7 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
+#include <zephyr/sys/time_units.h>
 
 /*
  * The synchronization demo has two threads that utilize semaphores and sleeping
@@ -113,6 +114,9 @@ int main(void)
 		k_thread_cpu_pin(thread_b, 1);
 	}
 #endif
+
+	extern uint32_t test_points;
+	printk("sys_clock_hw_cycles_per_sec(): %lu %08x\n", sys_clock_hw_cycles_per_sec(), test_points);
 
 	k_thread_start(&thread_a_data);
 	return 0;

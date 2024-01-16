@@ -127,8 +127,9 @@ static void uart_rcar_set_baudrate(const struct device *dev,
 {
 	struct uart_rcar_data *data = dev->data;
 	uint8_t reg_val;
+	uint32_t clk_rate = data->clk_rate / ((sys_read16(DEVICE_MMIO_GET(dev) + 0x40) & 0x1f) + 1);
 
-	reg_val = ((data->clk_rate + 16 * baud_rate) / (32 * baud_rate) - 1);
+	reg_val = clk_rate / baud_rate;
 	uart_rcar_write_8(dev, SCBRR, reg_val);
 }
 
@@ -259,34 +260,42 @@ static int uart_rcar_config_get(const struct device *dev,
 }
 #endif /* CONFIG_UART_USE_RUNTIME_CONFIGURE */
 
+uint32_t test_points = 0;
+
 static int uart_rcar_init(const struct device *dev)
 {
 	const struct uart_rcar_cfg *config = dev->config;
 	struct uart_rcar_data *data = dev->data;
 	int ret;
 
+	test_points |= 0x01;
 	/* Configure dt provided device signals when available */
 	ret = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
 	if (ret < 0) {
 		return ret;
 	}
 
+	test_points |= 0x02;
 	if (!device_is_ready(config->clock_dev)) {
 		return -ENODEV;
 	}
 
+	test_points |= 0x04;
 	ret = clock_control_on(config->clock_dev,
 			       (clock_control_subsys_t)&config->mod_clk);
 	if (ret < 0) {
 		return ret;
 	}
 
+	test_points |= 0x08;
 	ret = clock_control_get_rate(config->clock_dev,
 				     (clock_control_subsys_t)&config->bus_clk,
 				     &data->clk_rate);
 	if (ret < 0) {
 		return ret;
 	}
+
+	test_points = data->clk_rate;
 
 	DEVICE_MMIO_MAP(dev, K_MEM_CACHE_NONE);
 
