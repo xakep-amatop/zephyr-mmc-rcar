@@ -15,6 +15,7 @@
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/irq.h>
 #include <zephyr/spinlock.h>
+#include <stdio.h>
 
 struct uart_rcar_cfg {
 	DEVICE_MMIO_ROM; /* Must be first */
@@ -22,9 +23,6 @@ struct uart_rcar_cfg {
 	struct rcar_cpg_clk mod_clk;
 	struct rcar_cpg_clk bus_clk;
 	const struct pinctrl_dev_config *pcfg;
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	void (*irq_config_func)(const struct device *dev);
-#endif
 };
 
 struct uart_rcar_data {
@@ -32,11 +30,11 @@ struct uart_rcar_data {
 	struct uart_config current_config;
 	uint32_t clk_rate;
 	struct k_spinlock lock;
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	uart_irq_callback_user_data_t callback;
-	void *cb_data;
-#endif
 };
+
+static char* ram_log = (char *)0x49000000; 
+static const mm_reg_t ram_log_size = 1 * 1024 * 1024;
+static unsigned int off = 0;
 
 /* Registers */
 #define SCSMR           0x00    /* Serial Mode Register */
@@ -127,7 +125,7 @@ static void uart_rcar_set_baudrate(const struct device *dev,
 {
 	struct uart_rcar_data *data = dev->data;
 	uint8_t reg_val;
-	uint32_t clk_rate = data->clk_rate / ((sys_read16(DEVICE_MMIO_GET(dev) + 0x40) & 0x1f) + 1);
+	uint32_t clk_rate = data->clk_rate / 8;
 
 	reg_val = clk_rate / baud_rate;
 	uart_rcar_write_8(dev, SCBRR, reg_val);
@@ -225,6 +223,8 @@ static int uart_rcar_configure(const struct device *dev,
 		     SCSMR_CKS1 | SCSMR_CKS0);
 	uart_rcar_write_16(dev, SCSMR, reg_val);
 
+	uart_rcar_write_16(dev, 0x40, 0x8007);
+
 	/* Set baudrate */
 	uart_rcar_set_baudrate(dev, cfg->baudrate);
 
@@ -248,18 +248,6 @@ static int uart_rcar_configure(const struct device *dev,
 	return 0;
 }
 
-#ifdef CONFIG_UART_USE_RUNTIME_CONFIGURE
-static int uart_rcar_config_get(const struct device *dev,
-				struct uart_config *cfg)
-{
-	struct uart_rcar_data *data = dev->data;
-
-	*cfg = data->current_config;
-
-	return 0;
-}
-#endif /* CONFIG_UART_USE_RUNTIME_CONFIGURE */
-
 uint32_t test_points = 0;
 
 static int uart_rcar_init(const struct device *dev)
@@ -267,6 +255,11 @@ static int uart_rcar_init(const struct device *dev)
 	const struct uart_rcar_cfg *config = dev->config;
 	struct uart_rcar_data *data = dev->data;
 	int ret;
+
+	device_map((mem_addr_t *)ram_log, *ram_log, ram_log_size, K_MEM_CACHE_NONE);
+
+	off += snprintf(ram_log + off, ram_log_size - off, "RAM LOG INITIALIZED\n");
+	
 
 	test_points |= 0x01;
 	/* Configure dt provided device signals when available */
@@ -304,226 +297,12 @@ static int uart_rcar_init(const struct device *dev)
 		return ret;
 	}
 
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	config->irq_config_func(dev);
-#endif
-
 	return 0;
 }
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-
-static bool uart_rcar_irq_is_enabled(const struct device *dev,
-				     uint32_t irq)
-{
-	return !!(uart_rcar_read_16(dev, SCSCR) & irq);
-}
-
-static int uart_rcar_fifo_fill(const struct device *dev,
-			       const uint8_t *tx_data,
-			       int len)
-{
-	struct uart_rcar_data *data = dev->data;
-	int num_tx = 0;
-	uint16_t reg_val;
-	k_spinlock_key_t key = k_spin_lock(&data->lock);
-
-	while (((len - num_tx) > 0) &&
-	       (uart_rcar_read_16(dev, SCFSR) & SCFSR_TDFE)) {
-		/* Send current byte */
-		uart_rcar_write_8(dev, SCFTDR, tx_data[num_tx]);
-
-		reg_val = uart_rcar_read_16(dev, SCFSR);
-		reg_val &= ~(SCFSR_TDFE | SCFSR_TEND);
-		uart_rcar_write_16(dev, SCFSR, reg_val);
-
-		num_tx++;
-	}
-
-	k_spin_unlock(&data->lock, key);
-
-	return num_tx;
-}
-
-static int uart_rcar_fifo_read(const struct device *dev, uint8_t *rx_data,
-			       const int size)
-{
-	struct uart_rcar_data *data = dev->data;
-	int num_rx = 0;
-	uint16_t reg_val;
-	k_spinlock_key_t key = k_spin_lock(&data->lock);
-
-	while (((size - num_rx) > 0) &&
-	       (uart_rcar_read_16(dev, SCFSR) & SCFSR_RDF)) {
-		/* Receive current byte */
-		rx_data[num_rx++] = uart_rcar_read_16(dev, SCFRDR);
-
-		reg_val = uart_rcar_read_16(dev, SCFSR);
-		reg_val &= ~(SCFSR_RDF);
-		uart_rcar_write_16(dev, SCFSR, reg_val);
-
-	}
-
-	k_spin_unlock(&data->lock, key);
-
-	return num_rx;
-}
-
-static void uart_rcar_irq_tx_enable(const struct device *dev)
-{
-	struct uart_rcar_data *data = dev->data;
-
-	uint16_t reg_val;
-	k_spinlock_key_t key = k_spin_lock(&data->lock);
-
-	reg_val = uart_rcar_read_16(dev, SCSCR);
-	reg_val |= (SCSCR_TIE);
-	uart_rcar_write_16(dev, SCSCR, reg_val);
-
-	k_spin_unlock(&data->lock, key);
-}
-
-static void uart_rcar_irq_tx_disable(const struct device *dev)
-{
-	struct uart_rcar_data *data = dev->data;
-
-	uint16_t reg_val;
-	k_spinlock_key_t key = k_spin_lock(&data->lock);
-
-	reg_val = uart_rcar_read_16(dev, SCSCR);
-	reg_val &= ~(SCSCR_TIE);
-	uart_rcar_write_16(dev, SCSCR, reg_val);
-
-	k_spin_unlock(&data->lock, key);
-}
-
-static int uart_rcar_irq_tx_ready(const struct device *dev)
-{
-	return !!(uart_rcar_read_16(dev, SCFSR) & SCFSR_TDFE);
-}
-
-static void uart_rcar_irq_rx_enable(const struct device *dev)
-{
-	struct uart_rcar_data *data = dev->data;
-
-	uint16_t reg_val;
-	k_spinlock_key_t key = k_spin_lock(&data->lock);
-
-	reg_val = uart_rcar_read_16(dev, SCSCR);
-	reg_val |= (SCSCR_RIE);
-	uart_rcar_write_16(dev, SCSCR, reg_val);
-
-	k_spin_unlock(&data->lock, key);
-}
-
-static void uart_rcar_irq_rx_disable(const struct device *dev)
-{
-	struct uart_rcar_data *data = dev->data;
-
-	uint16_t reg_val;
-	k_spinlock_key_t key = k_spin_lock(&data->lock);
-
-	reg_val = uart_rcar_read_16(dev, SCSCR);
-	reg_val &= ~(SCSCR_RIE);
-	uart_rcar_write_16(dev, SCSCR, reg_val);
-
-	k_spin_unlock(&data->lock, key);
-}
-
-static int uart_rcar_irq_rx_ready(const struct device *dev)
-{
-	return !!(uart_rcar_read_16(dev, SCFSR) & SCFSR_RDF);
-}
-
-static void uart_rcar_irq_err_enable(const struct device *dev)
-{
-	struct uart_rcar_data *data = dev->data;
-
-	uint16_t reg_val;
-	k_spinlock_key_t key = k_spin_lock(&data->lock);
-
-	reg_val = uart_rcar_read_16(dev, SCSCR);
-	reg_val |= (SCSCR_REIE);
-	uart_rcar_write_16(dev, SCSCR, reg_val);
-
-	k_spin_unlock(&data->lock, key);
-}
-
-static void uart_rcar_irq_err_disable(const struct device *dev)
-{
-	struct uart_rcar_data *data = dev->data;
-
-	uint16_t reg_val;
-	k_spinlock_key_t key = k_spin_lock(&data->lock);
-
-	reg_val = uart_rcar_read_16(dev, SCSCR);
-	reg_val &= ~(SCSCR_REIE);
-	uart_rcar_write_16(dev, SCSCR, reg_val);
-
-	k_spin_unlock(&data->lock, key);
-}
-
-static int uart_rcar_irq_is_pending(const struct device *dev)
-{
-	return (uart_rcar_irq_rx_ready(dev) && uart_rcar_irq_is_enabled(dev, SCSCR_RIE)) ||
-	       (uart_rcar_irq_tx_ready(dev) && uart_rcar_irq_is_enabled(dev, SCSCR_TIE));
-}
-
-static int uart_rcar_irq_update(const struct device *dev)
-{
-	return 1;
-}
-
-static void uart_rcar_irq_callback_set(const struct device *dev,
-				       uart_irq_callback_user_data_t cb,
-				       void *cb_data)
-{
-	struct uart_rcar_data *data = dev->data;
-
-	data->callback = cb;
-	data->cb_data = cb_data;
-}
-
-/**
- * @brief Interrupt service routine.
- *
- * This simply calls the callback function, if one exists.
- *
- * @param arg Argument to ISR.
- */
-void uart_rcar_isr(const struct device *dev)
-{
-	struct uart_rcar_data *data = dev->data;
-
-	if (data->callback) {
-		data->callback(dev, data->cb_data);
-	}
-}
-
-#endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
 static const struct uart_driver_api uart_rcar_driver_api = {
 	.poll_in = uart_rcar_poll_in,
 	.poll_out = uart_rcar_poll_out,
-#ifdef CONFIG_UART_USE_RUNTIME_CONFIGURE
-	.configure = uart_rcar_configure,
-	.config_get = uart_rcar_config_get,
-#endif
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	.fifo_fill = uart_rcar_fifo_fill,
-	.fifo_read = uart_rcar_fifo_read,
-	.irq_tx_enable = uart_rcar_irq_tx_enable,
-	.irq_tx_disable = uart_rcar_irq_tx_disable,
-	.irq_tx_ready = uart_rcar_irq_tx_ready,
-	.irq_rx_enable = uart_rcar_irq_rx_enable,
-	.irq_rx_disable = uart_rcar_irq_rx_disable,
-	.irq_rx_ready = uart_rcar_irq_rx_ready,
-	.irq_err_enable = uart_rcar_irq_err_enable,
-	.irq_err_disable = uart_rcar_irq_err_disable,
-	.irq_is_pending = uart_rcar_irq_is_pending,
-	.irq_update = uart_rcar_irq_update,
-	.irq_callback_set = uart_rcar_irq_callback_set,
-#endif  /* CONFIG_UART_INTERRUPT_DRIVEN */
 };
 
 /* Device Instantiation */
@@ -544,27 +323,10 @@ static const struct uart_driver_api uart_rcar_driver_api = {
 		IRQ_FUNC_INIT					    \
 	}
 
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-#define UART_RCAR_CONFIG_FUNC(n)				  \
-	static void irq_config_func_##n(const struct device *dev) \
-	{							  \
-		IRQ_CONNECT(DT_INST_IRQN(n),			  \
-			    DT_INST_IRQ(n, priority),		  \
-			    uart_rcar_isr,			  \
-			    DEVICE_DT_INST_GET(n), 0);		  \
-								  \
-		irq_enable(DT_INST_IRQN(n));			  \
-	}
-#define UART_RCAR_IRQ_CFG_FUNC_INIT(n) \
-	.irq_config_func = irq_config_func_##n
-#define UART_RCAR_INIT_CFG(n) \
-	UART_RCAR_DECLARE_CFG(n, UART_RCAR_IRQ_CFG_FUNC_INIT(n))
-#else
 #define UART_RCAR_CONFIG_FUNC(n)
 #define UART_RCAR_IRQ_CFG_FUNC_INIT
 #define UART_RCAR_INIT_CFG(n) \
 	UART_RCAR_DECLARE_CFG(n, UART_RCAR_IRQ_CFG_FUNC_INIT)
-#endif
 
 #define UART_RCAR_INIT(n)							\
 	static struct uart_rcar_data uart_rcar_data_##n = {			\

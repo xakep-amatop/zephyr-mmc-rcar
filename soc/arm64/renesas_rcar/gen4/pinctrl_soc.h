@@ -6,6 +6,6 @@
 
 #ifndef ZEPHYR_SOC_ARM64_RENESAS_RCAR_GEN4_PINCTRL_SOC_H_
 #define ZEPHYR_SOC_ARM64_RENESAS_RCAR_GEN4_PINCTRL_SOC_H_
-#include <zephyr/drivers/pinctrl/pinctrl_rcar.h>
+#include <zephyr/drivers/pinctrl/pinctrl_rcar_common.h>
 
 #endif /* ZEPHYR_SOC_ARM64_RENESAS_RCAR_GEN4_PINCTRL_SOC_H_ */
