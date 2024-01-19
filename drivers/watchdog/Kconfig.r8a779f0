@@ -1,0 +1,13 @@
+# Watchdog configuration options
+#
+# Copyright (c) 2019 Interay Solutions B.V.
+# Copyright (c) 2019 Oane Kingma
+#
+# SPDX-License-Identifier: Apache-2.0
+
+config WDT_R8A779F0
+	bool "Renesas R8A779F0 Watchdog (WDOG) Driver"
+	default y
+	depends on DT_HAS_RENESAS_R8A779F0_WDT_ENABLED
+	help
+	  Enable WDOG driver for Renesas R8A779F0 SoCs
