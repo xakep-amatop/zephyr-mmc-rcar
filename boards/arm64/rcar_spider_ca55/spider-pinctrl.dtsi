@@ -8,18 +8,10 @@
 
 &pfc {
 	hscif0_data_tx_default: hscif0_data_tx_default {
-		pin = <PIN_HRX0 FUNC_HRX0>;
-	};
-
-	hscif0_data_rx_default: hscif0_data_rx_default {
 		pin = <PIN_HTX0 FUNC_HTX0>;
 	};
 
-	hscif0_rts_default: hscif0_rts_default {
-		pin = <PIN_HRTS0_N FUNC_HRTS0_N>;
-	};
-
-	hscif0_cts_default: hscif0_cts_default {
-		pin = <PIN_HCTS0_N FUNC_HCTS0_N>;
+	hscif0_data_rx_default: hscif0_data_rx_default {
+		pin = <PIN_HRX0 FUNC_HRX0>;
 	};
 };

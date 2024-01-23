@@ -30,7 +30,7 @@
 };
 
 &hscif0 {
-	pinctrl-0 = <&hscif0_data_tx_default &hscif0_data_rx_default &hscif0_rts_default &hscif0_cts_default>;
+	pinctrl-0 = <&hscif0_data_tx_default &hscif0_data_rx_default>;
 	pinctrl-names = "default";
 	current-speed = <1843200>;
 	status = "okay";
