@@ -18,6 +18,11 @@
 		zephyr,shell-uart = &hscif0;
 	};
 
+	/* These aliases are provided for compatibility with samples */
+	aliases {
+		watchdog0 = &rwdt;
+	};
+
 	ram: memory@48000000 {
 		device_type = "mmio-sram";
 		reg = <0x0 0x48000000 0x0 DT_SIZE_M(512)>;
